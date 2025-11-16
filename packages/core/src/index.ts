@@ -27,3 +27,16 @@ export type { ViewportConfig } from './viewport';
 
 export { TimeAxis, defaultTimeFormatter, PriceAxis, defaultPriceFormatter } from './axis';
 export type { TimeTick, TimeFormatter, PriceTick, PriceFormatter } from './axis';
+
+// Phase 3: Rendering engine
+export { CanvasRenderer } from './renderer';
+export type { IRenderer } from './renderer';
+
+export { LayoutManager } from './layout';
+export type { LayoutConfig, LayoutRect, ChartLayout } from './layout';
+
+export { CandleRenderer, defaultCandleStyle } from './drawing';
+export type { CandleStyle } from './drawing';
+
+export { PluginManager, RenderPhase } from './plugins';
+export type { IPlugin, PluginHook, PluginContext } from './plugins';
