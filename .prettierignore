@@ -1,0 +1,10 @@
+dist
+build
+node_modules
+.pnpm-store
+coverage
+*.min.js
+*.min.css
+pnpm-lock.yaml
+.vitepress/cache
+.vitepress/dist

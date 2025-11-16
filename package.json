@@ -1,0 +1,40 @@
+{
+  "name": "@solvx/graph-library-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SolVX Graph Engine - A high-performance charting library",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "typecheck": "pnpm -r --filter './packages/*' typecheck",
+    "clean": "pnpm -r --parallel run clean && rm -rf node_modules",
+    "dev:vanilla": "pnpm --filter @solvx/example-vanilla dev",
+    "dev:react": "pnpm --filter @solvx/example-react-dashboard dev",
+    "dev:docs": "pnpm --filter @solvx/docs dev",
+    "build:docs": "pnpm --filter @solvx/docs build",
+    "prepare": "husky install || true"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^8.0.3",
+    "jsdom": "^23.2.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11",
+    "vitest": "^1.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.1"
+}

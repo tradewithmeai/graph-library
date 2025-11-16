@@ -1,0 +1,51 @@
+{
+  "name": "@solvx/graph-engine-react",
+  "version": "0.1.0",
+  "description": "React wrapper for SolVX Graph Engine",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && pnpm run build:bundle && pnpm run build:types",
+    "build:bundle": "vite build",
+    "build:types": "tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "vite build --watch"
+  },
+  "keywords": [
+    "chart",
+    "graph",
+    "react",
+    "visualization"
+  ],
+  "author": "SolVX",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "@solvx/graph-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  }
+}

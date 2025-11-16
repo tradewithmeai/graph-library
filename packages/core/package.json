@@ -1,0 +1,42 @@
+{
+  "name": "@solvx/graph-engine",
+  "version": "0.1.0",
+  "description": "Core charting engine for SolVX Graph Library",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && pnpm run build:bundle && pnpm run build:types",
+    "build:bundle": "vite build",
+    "build:types": "tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "vite build --watch"
+  },
+  "keywords": [
+    "chart",
+    "graph",
+    "visualization",
+    "canvas",
+    "webgl"
+  ],
+  "author": "SolVX",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  }
+}
