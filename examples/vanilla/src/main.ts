@@ -5,6 +5,8 @@ import {
   CrosshairTooltipPlugin,
   MovingAveragePlugin,
   ShapesOverlayPlugin,
+  RandomWalkSource,
+  ArrayPlaybackSource,
 } from '@solvx/graph-engine';
 import type { ChartOptions, Candle } from '@solvx/graph-engine';
 
@@ -103,15 +105,19 @@ function initChart(): void {
   });
 
   // Setup plugin controls
-  setupControls(chart, {
+  setupPluginControls(chart, {
     tooltip: tooltipPlugin,
     ma20: ma20Plugin,
     ma50: ma50Plugin,
     shapes: shapesPlugin,
   });
 
+  // Setup live data controls
+  setupLiveDataControls(chart, series, candleData);
+
   console.log('Chart initialized with', candleData.length, 'candles');
   console.log('Plugins installed: tooltip, MA(20), MA(50), shapes');
+  console.log('Live data controls available');
 
   // Store chart instance globally for debugging
   (window as Window & { chart?: Chart }).chart = chart;
@@ -120,7 +126,7 @@ function initChart(): void {
 /**
  * Setup plugin controls
  */
-function setupControls(
+function setupPluginControls(
   chart: Chart,
   plugins: {
     tooltip: CrosshairTooltipPlugin;
@@ -181,6 +187,178 @@ function setupControls(
   const chartContainer = chart.getContainer();
   if (chartContainer) {
     chartContainer.style.position = 'relative';
+    chartContainer.appendChild(controlsContainer);
+  }
+}
+
+/**
+ * Setup live data controls
+ */
+function setupLiveDataControls(chart: Chart, series: CandleSeries, staticData: Candle[]): void {
+  // Create controls container
+  const controlsContainer = document.createElement('div');
+  controlsContainer.style.cssText = `
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: sans-serif;
+    font-size: 14px;
+    min-width: 200px;
+  `;
+
+  const title = document.createElement('div');
+  title.textContent = 'Live Data (Phase 6)';
+  title.style.cssText = 'font-weight: bold; margin-bottom: 8px;';
+  controlsContainer.appendChild(title);
+
+  // Status display
+  const statusDiv = document.createElement('div');
+  statusDiv.style.cssText = 'margin-bottom: 8px; font-size: 12px; color: #666;';
+  statusDiv.textContent = 'Status: Static';
+  controlsContainer.appendChild(statusDiv);
+
+  // Data source buttons
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = 'display: flex; flex-direction: column; gap: 6px;';
+
+  // Static data button
+  const staticBtn = document.createElement('button');
+  staticBtn.textContent = 'Static Data';
+  staticBtn.style.cssText = `
+    padding: 6px 12px;
+    cursor: pointer;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+  `;
+  staticBtn.disabled = true;
+
+  // Random walk button
+  const randomWalkBtn = document.createElement('button');
+  randomWalkBtn.textContent = 'Random Walk (250ms)';
+  randomWalkBtn.style.cssText = `
+    padding: 6px 12px;
+    cursor: pointer;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+  `;
+
+  // Array playback button
+  const playbackBtn = document.createElement('button');
+  playbackBtn.textContent = 'Playback (2x speed)';
+  playbackBtn.style.cssText = `
+    padding: 6px 12px;
+    cursor: pointer;
+    background: #FF9800;
+    color: white;
+    border: none;
+    border-radius: 3px;
+  `;
+
+  let currentSource: 'static' | 'randomwalk' | 'playback' = 'static';
+
+  // Random walk source instance
+  let randomWalkSource: RandomWalkSource | null = null;
+  let arrayPlaybackSource: ArrayPlaybackSource | null = null;
+
+  function updateButtonStates(): void {
+    staticBtn.disabled = currentSource === 'static';
+    randomWalkBtn.disabled = currentSource === 'randomwalk';
+    playbackBtn.disabled = currentSource === 'playback';
+
+    staticBtn.style.opacity = currentSource === 'static' ? '0.5' : '1';
+    randomWalkBtn.style.opacity = currentSource === 'randomwalk' ? '0.5' : '1';
+    playbackBtn.style.opacity = currentSource === 'playback' ? '0.5' : '1';
+  }
+
+  staticBtn.addEventListener('click', () => {
+    // Disconnect any active data source
+    chart.disconnectDataSource(series);
+    if (randomWalkSource) {
+      randomWalkSource.stop();
+      randomWalkSource = null;
+    }
+    if (arrayPlaybackSource) {
+      arrayPlaybackSource.stop();
+      arrayPlaybackSource = null;
+    }
+
+    // Reset to static data
+    series.setData(staticData);
+
+    currentSource = 'static';
+    statusDiv.textContent = 'Status: Static (' + staticData.length + ' candles)';
+    updateButtonStates();
+  });
+
+  randomWalkBtn.addEventListener('click', () => {
+    // Disconnect any active data source
+    chart.disconnectDataSource(series);
+    if (arrayPlaybackSource) {
+      arrayPlaybackSource.stop();
+      arrayPlaybackSource = null;
+    }
+
+    // Clear series and start with fresh random walk
+    series.clear();
+
+    // Create and connect random walk source
+    randomWalkSource = new RandomWalkSource({
+      initialPrice: 100,
+      volatility: 1.5,
+      interval: 250, // 250ms updates
+      candleDuration: 5000, // 5 second candles
+      baseVolume: 100000,
+    });
+
+    chart.connectDataSource(series, randomWalkSource);
+
+    currentSource = 'randomwalk';
+    statusDiv.textContent = 'Status: Live Random Walk (250ms interval)';
+    updateButtonStates();
+  });
+
+  playbackBtn.addEventListener('click', () => {
+    // Disconnect any active data source
+    chart.disconnectDataSource(series);
+    if (randomWalkSource) {
+      randomWalkSource.stop();
+      randomWalkSource = null;
+    }
+
+    // Clear series for playback
+    series.clear();
+
+    // Create and connect array playback source
+    arrayPlaybackSource = new ArrayPlaybackSource({
+      data: staticData,
+      speed: 2, // 2x speed
+      loop: false,
+    });
+
+    chart.connectDataSource(series, arrayPlaybackSource);
+
+    currentSource = 'playback';
+    statusDiv.textContent = 'Status: Playback (2x speed)';
+    updateButtonStates();
+  });
+
+  buttonContainer.appendChild(staticBtn);
+  buttonContainer.appendChild(randomWalkBtn);
+  buttonContainer.appendChild(playbackBtn);
+  controlsContainer.appendChild(buttonContainer);
+
+  updateButtonStates();
+
+  const chartContainer = chart.getContainer();
+  if (chartContainer) {
     chartContainer.appendChild(controlsContainer);
   }
 }

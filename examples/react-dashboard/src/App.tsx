@@ -1,10 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { SolVXChart, type Chart } from '@solvx/graph-engine-react';
 import {
   CandleSeries,
   CrosshairTooltipPlugin,
   MovingAveragePlugin,
   ShapesOverlayPlugin,
+  RandomWalkSource,
+  ArrayPlaybackSource,
   type Candle,
 } from '@solvx/graph-engine';
 import './App.css';
@@ -48,12 +50,20 @@ function generateSampleData(): Candle[] {
 
 export function App(): JSX.Element {
   const [chartInstance, setChartInstance] = useState<Chart | null>(null);
+  const [seriesInstance, setSeriesInstance] = useState<CandleSeries | null>(null);
   const [pluginsEnabled, setPluginsEnabled] = useState({
     tooltip: true,
     ma20: true,
     ma50: true,
     shapes: true,
   });
+  const [dataSourceMode, setDataSourceMode] = useState<'static' | 'randomwalk' | 'playback'>(
+    'static',
+  );
+
+  const randomWalkSourceRef = useRef<RandomWalkSource | null>(null);
+  const arrayPlaybackSourceRef = useRef<ArrayPlaybackSource | null>(null);
+  const staticDataRef = useRef<Candle[]>([]);
 
   const handleChartReady = useCallback((chart: Chart) => {
     console.log('Chart ready:', chart);
@@ -62,8 +72,11 @@ export function App(): JSX.Element {
 
     // Generate and add sample data
     const candleData = generateSampleData();
+    staticDataRef.current = candleData;
+
     const series = new CandleSeries(candleData);
     chart.addSeries(series);
+    setSeriesInstance(series);
 
     // Create and install plugins
     const tooltipPlugin = new CrosshairTooltipPlugin();
@@ -155,6 +168,45 @@ export function App(): JSX.Element {
     });
   }, [chartInstance, pluginsEnabled]);
 
+  // Handle data source mode changes
+  useEffect(() => {
+    if (!chartInstance || !seriesInstance) return;
+
+    // Cleanup existing data sources
+    if (randomWalkSourceRef.current) {
+      randomWalkSourceRef.current.stop();
+      randomWalkSourceRef.current = null;
+    }
+    if (arrayPlaybackSourceRef.current) {
+      arrayPlaybackSourceRef.current.stop();
+      arrayPlaybackSourceRef.current = null;
+    }
+    chartInstance.disconnectDataSource(seriesInstance);
+
+    // Apply new data source mode
+    if (dataSourceMode === 'static') {
+      seriesInstance.setData(staticDataRef.current);
+    } else if (dataSourceMode === 'randomwalk') {
+      seriesInstance.clear();
+      randomWalkSourceRef.current = new RandomWalkSource({
+        initialPrice: 100,
+        volatility: 1.5,
+        interval: 250,
+        candleDuration: 5000,
+        baseVolume: 100000,
+      });
+      chartInstance.connectDataSource(seriesInstance, randomWalkSourceRef.current);
+    } else if (dataSourceMode === 'playback') {
+      seriesInstance.clear();
+      arrayPlaybackSourceRef.current = new ArrayPlaybackSource({
+        data: staticDataRef.current,
+        speed: 2,
+        loop: false,
+      });
+      chartInstance.connectDataSource(seriesInstance, arrayPlaybackSourceRef.current);
+    }
+  }, [chartInstance, seriesInstance, dataSourceMode]);
+
   const togglePlugin = (plugin: keyof typeof pluginsEnabled) => {
     setPluginsEnabled((prev) => ({
       ...prev,
@@ -191,6 +243,54 @@ export function App(): JSX.Element {
                     <div>Plugins: {chartInstance.getInstalledPlugins().length} installed</div>
                   </div>
                 )}
+              </div>
+
+              <div className="info-card">
+                <h3>Live Data Controls (Phase 6)</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => setDataSourceMode('static')}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      background: dataSourceMode === 'static' ? '#4CAF50' : '#ddd',
+                      color: dataSourceMode === 'static' ? 'white' : '#333',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontWeight: dataSourceMode === 'static' ? 'bold' : 'normal',
+                    }}
+                  >
+                    Static Data
+                  </button>
+                  <button
+                    onClick={() => setDataSourceMode('randomwalk')}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      background: dataSourceMode === 'randomwalk' ? '#2196F3' : '#ddd',
+                      color: dataSourceMode === 'randomwalk' ? 'white' : '#333',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontWeight: dataSourceMode === 'randomwalk' ? 'bold' : 'normal',
+                    }}
+                  >
+                    Random Walk (250ms)
+                  </button>
+                  <button
+                    onClick={() => setDataSourceMode('playback')}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      background: dataSourceMode === 'playback' ? '#FF9800' : '#ddd',
+                      color: dataSourceMode === 'playback' ? 'white' : '#333',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontWeight: dataSourceMode === 'playback' ? 'bold' : 'normal',
+                    }}
+                  >
+                    Playback (2x speed)
+                  </button>
+                </div>
               </div>
 
               <div className="info-card">
@@ -239,23 +339,23 @@ export function App(): JSX.Element {
                 <h3>About</h3>
                 <p>
                   This React dashboard demonstrates the <code>SolVXChart</code> component from the{' '}
-                  <code>@solvx/graph-engine-react</code> package with Phase 5 plugin architecture.
+                  <code>@solvx/graph-engine-react</code> package with Phase 6 live data system.
                 </p>
                 <p>
-                  Features: CrosshairTooltip, Moving Averages (MA20, MA50), and Shapes Overlay with
-                  runtime plugin toggles.
+                  Features: Live data sources (RandomWalk, Playback), CrosshairTooltip, Moving
+                  Averages (MA20, MA50), and Shapes Overlay with runtime controls.
                 </p>
               </div>
 
               <div className="info-card">
-                <h3>Phase 5 Complete</h3>
+                <h3>Phase 6 Complete</h3>
                 <p>
-                  The full plugin architecture is now implemented with three core plugins:
-                  CrosshairTooltipPlugin, MovingAveragePlugin, and ShapesOverlayPlugin.
+                  Live data system implemented with IDataSource interface, RandomWalkSource, and
+                  ArrayPlaybackSource. Updates coalesce via rAF for 60 FPS performance.
                 </p>
                 <p>
-                  Use the Plugin Controls to enable/disable plugins dynamically and see them in
-                  action on the chart.
+                  Try the live data modes above to see real-time updates (250ms interval) with all
+                  plugins functioning smoothly.
                 </p>
               </div>
             </div>

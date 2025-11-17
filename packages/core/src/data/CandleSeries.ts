@@ -363,4 +363,160 @@ export class CandleSeries {
 
     return result;
   }
+
+  /**
+   * Update or append a candle based on timestamp
+   *
+   * If the candle's timestamp matches the last candle, updates it.
+   * Otherwise, appends it as a new candle.
+   *
+   * This is the primary method for live data updates.
+   *
+   * @param candle - Candle to update or append
+   */
+  public updateOrAppend(candle: Candle): void {
+    if (this.length === 0) {
+      // No data yet, append
+      this.appendCandle(candle);
+      return;
+    }
+
+    const lastTs = this.ts[this.length - 1];
+    if (lastTs === undefined) {
+      this.appendCandle(candle);
+      return;
+    }
+
+    if (candle.ts === lastTs) {
+      // Update existing last candle
+      this.updateLastCandle(candle);
+    } else if (candle.ts > lastTs) {
+      // Append new candle
+      this.appendCandle(candle);
+    } else {
+      // Out of order - ignore or warn
+      console.warn(`CandleSeries: Ignoring out-of-order candle (ts=${candle.ts}, last=${lastTs})`);
+    }
+  }
+
+  /**
+   * Update the last candle in the series
+   *
+   * @param candle - Updated candle data
+   */
+  public updateLastCandle(candle: Candle): void {
+    if (this.length === 0) {
+      console.warn('CandleSeries: Cannot update last candle - series is empty');
+      return;
+    }
+
+    const lastIndex = this.length - 1;
+
+    // Update values
+    this.ts[lastIndex] = candle.ts;
+    this.open[lastIndex] = candle.open;
+    this.high[lastIndex] = candle.high;
+    this.low[lastIndex] = candle.low;
+    this.close[lastIndex] = candle.close;
+
+    if (this.volume && candle.volume !== undefined) {
+      this.volume[lastIndex] = candle.volume;
+    }
+
+    this.notifyListeners();
+  }
+
+  /**
+   * Append a new candle to the series
+   *
+   * Grows the underlying arrays as needed with a growth factor of 1.5x
+   * to minimize reallocations.
+   *
+   * @param candle - Candle to append
+   */
+  public appendCandle(candle: Candle): void {
+    // Ensure volume array exists if needed
+    if (candle.volume !== undefined && !this.hasVolume) {
+      this.hasVolume = true;
+      // Create volume array and backfill with zeros
+      const newVolume = new Float64Array(Math.max(this.length, 16));
+      this.volume = newVolume;
+    }
+
+    // Check if we need to grow arrays
+    const currentCapacity = this.ts.length;
+    if (this.length >= currentCapacity) {
+      this.grow();
+    }
+
+    // Append candle
+    this.ts[this.length] = candle.ts;
+    this.open[this.length] = candle.open;
+    this.high[this.length] = candle.high;
+    this.low[this.length] = candle.low;
+    this.close[this.length] = candle.close;
+
+    if (this.volume && candle.volume !== undefined) {
+      this.volume[this.length] = candle.volume;
+    }
+
+    this.length++;
+    this.notifyListeners();
+  }
+
+  /**
+   * Grow the underlying arrays by 1.5x
+   */
+  private grow(): void {
+    const currentCapacity = this.ts.length;
+    const newCapacity = Math.max(16, Math.ceil(currentCapacity * 1.5));
+
+    // Create new arrays
+    const newTs = new Float64Array(newCapacity);
+    const newOpen = new Float64Array(newCapacity);
+    const newHigh = new Float64Array(newCapacity);
+    const newLow = new Float64Array(newCapacity);
+    const newClose = new Float64Array(newCapacity);
+    let newVolume: Float64Array | null = null;
+
+    if (this.hasVolume) {
+      newVolume = new Float64Array(newCapacity);
+    }
+
+    // Copy existing data
+    if (this.length > 0) {
+      newTs.set(this.ts.subarray(0, this.length));
+      newOpen.set(this.open.subarray(0, this.length));
+      newHigh.set(this.high.subarray(0, this.length));
+      newLow.set(this.low.subarray(0, this.length));
+      newClose.set(this.close.subarray(0, this.length));
+
+      if (newVolume && this.volume) {
+        newVolume.set(this.volume.subarray(0, this.length));
+      }
+    }
+
+    // Replace arrays
+    this.ts = newTs;
+    this.open = newOpen;
+    this.high = newHigh;
+    this.low = newLow;
+    this.close = newClose;
+    this.volume = newVolume;
+  }
+
+  /**
+   * Clear all data from the series
+   */
+  public clear(): void {
+    this.length = 0;
+    this.ts = new Float64Array(0);
+    this.open = new Float64Array(0);
+    this.high = new Float64Array(0);
+    this.low = new Float64Array(0);
+    this.close = new Float64Array(0);
+    this.volume = null;
+    this.hasVolume = false;
+    this.notifyListeners();
+  }
 }

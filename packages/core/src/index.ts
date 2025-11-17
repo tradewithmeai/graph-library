@@ -79,3 +79,10 @@ export type {
   HorizontalBand,
   Shape,
 } from './plugins-builtin';
+
+// Phase 6: Live data system
+export type { IDataSource, CandleUpdateCallback, CandleBatchCallback } from './data/IDataSource';
+export { RandomWalkSource } from './data/RandomWalkSource';
+export type { RandomWalkConfig } from './data/RandomWalkSource';
+export { ArrayPlaybackSource } from './data/ArrayPlaybackSource';
+export type { ArrayPlaybackConfig } from './data/ArrayPlaybackSource';

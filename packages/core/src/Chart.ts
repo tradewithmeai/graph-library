@@ -5,6 +5,7 @@ import type { IRenderer } from './renderer/IRenderer';
 import { LayoutManager } from './layout/LayoutManager';
 import type { LayoutConfig, ChartLayout } from './layout/LayoutManager';
 import { CandleSeries } from './data/CandleSeries';
+import type { IDataSource } from './data/IDataSource';
 import { Viewport } from './viewport/Viewport';
 import { TimeAxis } from './axis/TimeAxis';
 import { PriceAxis } from './axis/PriceAxis';
@@ -57,6 +58,9 @@ export class Chart {
   private crosshair: Crosshair | null = null;
   private crosshairRenderer: CrosshairRenderer | null = null;
   private hasInitialViewport: boolean = false;
+
+  // Data sources
+  private dataSourceSubscriptions: Map<CandleSeries, () => void> = new Map();
 
   /**
    * Creates a new Chart instance
@@ -752,6 +756,58 @@ export class Chart {
   }
 
   /**
+   * Connect a data source to a series for live updates
+   *
+   * The data source will emit candles that are automatically applied
+   * to the series via updateOrAppend(). Updates are coalesced via
+   * requestAnimationFrame for efficient rendering.
+   *
+   * @param series - Series to connect the data source to
+   * @param dataSource - Data source providing live updates
+   */
+  public connectDataSource(series: CandleSeries, dataSource: IDataSource): void {
+    // Disconnect any existing data source for this series
+    this.disconnectDataSource(series);
+
+    // Subscribe to data source updates
+    const unsubscribe = dataSource.subscribe((candle) => {
+      // Update series
+      series.updateOrAppend(candle);
+
+      // Schedule render (coalesced via rAF by scheduleRender)
+      this.scheduleRender();
+    });
+
+    // Store unsubscribe function
+    this.dataSourceSubscriptions.set(series, unsubscribe);
+  }
+
+  /**
+   * Disconnect a data source from a series
+   *
+   * Stops receiving live updates from the connected data source.
+   *
+   * @param series - Series to disconnect
+   */
+  public disconnectDataSource(series: CandleSeries): void {
+    const unsubscribe = this.dataSourceSubscriptions.get(series);
+    if (unsubscribe) {
+      unsubscribe();
+      this.dataSourceSubscriptions.delete(series);
+    }
+  }
+
+  /**
+   * Disconnect all data sources
+   */
+  public disconnectAllDataSources(): void {
+    for (const unsubscribe of this.dataSourceSubscriptions.values()) {
+      unsubscribe();
+    }
+    this.dataSourceSubscriptions.clear();
+  }
+
+  /**
    * Gets the current theme
    */
   public getTheme(): Theme {
@@ -871,6 +927,9 @@ export class Chart {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+
+    // Disconnect all data sources
+    this.disconnectAllDataSources();
 
     // Cleanup event manager
     if (this.eventManager) {
