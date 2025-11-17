@@ -1,0 +1,20 @@
+{
+  "name": "@solvx/example-timeframe-blending",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Two-timeframe blending example for SolVX Graph Engine",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@solvx/graph-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  }
+}

@@ -47,6 +47,16 @@ module.exports = {
         '@typescript-eslint/no-var-requires': 'off',
       },
     },
+    {
+      files: ['examples/*/src/**/*.ts', 'examples/*/src/**/*.tsx'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        'no-console': 'off',
+      },
+    },
   ],
   ignorePatterns: ['dist', 'build', 'node_modules', '*.d.ts'],
 };

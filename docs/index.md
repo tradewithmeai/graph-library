@@ -3,107 +3,81 @@ layout: home
 
 hero:
   name: SolVX Graph Engine
-  text: High-Performance Charting
-  tagline: A modern, flexible charting library for financial and data visualization
+  text: High-Performance Charting Library
+  tagline: Financial and data visualization built for speed, flexibility, and extensibility
   actions:
     - theme: brand
       text: Get Started
       link: /getting-started
     - theme: alt
-      text: View on GitHub
-      link: https://github.com/solvx/graph-engine
+      text: View Examples
+      link: /examples
+    - theme: alt
+      text: GitHub
+      link: https://github.com/tradewithmeai/graph-library
 
 features:
   - icon: ⚡
     title: High Performance
-    details: Built with performance in mind, utilizing modern rendering techniques for smooth 60fps interactions even with large datasets.
+    details: Built on typed arrays and Canvas 2D with HiDPI support. Smooth rendering at 60 FPS even with live data streaming at high frequencies.
 
-  - icon: 🎨
-    title: Fully Customizable
-    details: Comprehensive theming system and plugin architecture allow you to customize every aspect of your charts.
-
-  - icon: 📦
-    title: Tree-Shakeable
-    details: Zero side effects and ESM-first design ensure you only bundle what you use.
-
-  - icon: 🔧
-    title: TypeScript Native
-    details: Written in TypeScript with full type definitions for an excellent developer experience.
-
-  - icon: ⚛️
-    title: Framework Agnostic
-    details: Use with vanilla JavaScript, React, Vue, or any other framework. Official React bindings included.
+  - icon: 🔌
+    title: Extensible Plugin System
+    details: Powerful plugin architecture with built-in plugins for crosshair tooltips, moving averages, and shape overlays. Create custom plugins with full access to rendering pipeline.
 
   - icon: 📊
-    title: Rich Chart Types
-    details: Support for line, bar, candlestick, and custom chart types with a plugin system for extensions.
+    title: Live Data Streaming
+    details: First-class support for real-time data with IDataSource interface. Includes RandomWalkSource for testing and ArrayPlaybackSource for backtesting.
+
+  - icon: 🎨
+    title: Themeable & Customizable
+    details: Comprehensive theming system with dark/light modes. Customize colors, typography, spacing, and rendering styles.
+
+  - icon: ⚛️
+    title: React Support
+    details: Official React wrapper component with proper lifecycle management and type safety. Seamlessly integrate charts into your React applications.
+
+  - icon: 🛠️
+    title: Developer-Friendly API
+    details: Clean, intuitive API with full TypeScript support. Comprehensive documentation, examples, and inline JSDoc comments throughout.
 ---
 
-## Quick Start
-
-Install the core library:
-
-```bash
-npm install @solvx/graph-engine
-```
-
-Or with React bindings:
-
-```bash
-npm install @solvx/graph-engine @solvx/graph-engine-react
-```
-
-## Usage
-
-### Vanilla JavaScript
+## Quick Example
 
 ```typescript
-import { Chart } from '@solvx/graph-engine';
+import { Chart, CandleSeries, CrosshairTooltipPlugin } from '@solvx/graph-engine';
 
+// Create chart
 const chart = new Chart({
-  container: '#chart',
+  container: document.getElementById('chart'),
   width: 800,
-  height: 600,
+  height: 400,
 });
+
+// Add data
+const series = new CandleSeries(candleData);
+chart.addSeries(series);
+
+// Add plugins
+chart.installPlugin(new CrosshairTooltipPlugin());
 ```
 
-### React
+## Features at a Glance
 
-```tsx
-import { SolVXChart } from '@solvx/graph-engine-react';
+- **Phase 1-2**: Foundational chart structure with data model and coordinate scaling
+- **Phase 3**: Complete rendering engine with candles, axes, and grid
+- **Phase 4**: Full interaction support (pan, zoom, scroll, crosshair)
+- **Phase 5**: Plugin architecture with built-in plugins
+- **Phase 6**: Live data streaming with multiple data sources
 
-function App() {
-  return (
-    <SolVXChart
-      width={800}
-      height={600}
-      onChartReady={(chart) => {
-        console.log('Chart ready:', chart);
-      }}
-    />
-  );
-}
-```
+## Why SolVX Graph Engine?
 
-## Project Status
+Built from the ground up for **performance** and **extensibility**, SolVX Graph Engine is designed to handle demanding financial and data visualization scenarios:
 
-**Phase 1 - Foundation** (Current)
+- **Typed Arrays**: Columnar data storage for memory efficiency
+- **Canvas 2D**: Hardware-accelerated rendering with pixel-perfect clarity
+- **Plugin System**: Extend functionality without modifying core
+- **Live Data**: Built-in support for streaming data sources
+- **Type Safety**: Full TypeScript support throughout
 
-The foundational architecture is in place:
-
-- Core package structure
-- React wrapper package
-- Example applications
-- Documentation framework
-
-Future phases will add:
-
-- Rendering engine (Canvas/WebGL)
-- Data management layer
-- Interactive features
-- Plugin system
-- Advanced chart types
-
-## License
-
-MIT © 2024 SolVX
+[Get Started →](/getting-started)

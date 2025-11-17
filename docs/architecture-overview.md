@@ -1,233 +1,230 @@
 # Architecture Overview
 
-This document provides an overview of the SolVX Graph Engine architecture.
+SolVX Graph Engine is built with a modular, layered architecture designed for performance, extensibility, and maintainability.
 
-## Project Structure
-
-SolVX Graph Engine is organized as a monorepo with multiple packages:
+## High-Level Architecture
 
 ```
-graph-library/
-├── packages/
-│   ├── core/              # @solvx/graph-engine
-│   └── react/             # @solvx/graph-engine-react
-├── examples/
-│   ├── vanilla/           # Vanilla TypeScript example
-│   └── react-dashboard/   # React dashboard example
-├── docs/                  # Documentation site (VitePress)
-└── scripts/               # Build and release scripts
+┌─────────────────────────────────────────────────────────┐
+│                     Application Layer                    │
+│  (Your code, React components, event handlers)           │
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────┴────────────────────────────────┐
+│                     Chart (Facade)                       │
+│  Orchestrates all subsystems, manages lifecycle          │
+└───┬──────┬──────┬──────┬──────┬──────┬──────┬──────────┘
+    │      │      │      │      │      │      │
+┌───┴──┐ ┌─┴───┐ ┌┴────┐ ┌┴────┐ ┌┴───┐ ┌┴───┐ ┌┴────────┐
+│ Data │ │Rend-│ │Inter│ │Plug-│ │View│ │Axis│ │Crosshair│
+│Series│ │erer │ │actio│ │ins │ │port│ │    │ │         │
+│      │ │     │ │n    │ │     │ │    │ │    │ │         │
+└──────┘ └─────┘ └─────┘ └─────┘ └────┘ └────┘ └─────────┘
 ```
 
-## Core Package
+## Core Components
 
-The `@solvx/graph-engine` package contains the core charting engine.
+### 1. Data Layer
 
-### Key Components
+**CandleSeries**
 
-**Chart Class**
+- Stores OHLCV data in typed arrays (`Float64Array`)
+- Columnar storage for cache efficiency
+- Binary search for time-based queries
+- Live update support (`updateOrAppend`)
 
-The main entry point for creating chart instances. Handles:
+**IDataSource**
 
-- Container resolution
-- Theme management
-- Lifecycle management
-- Configuration
+- Interface for live and historical data
+- Implementations: `RandomWalkSource`, `ArrayPlaybackSource`
+- Subscription-based push model
 
-**Theme System**
+### 2. Coordinate System
 
-The theme system provides a comprehensive way to customize the visual appearance:
+**Viewport**
+
+- Manages time/price to pixel transformations
+- Bidirectional scaling: `xScale`, `yScale`, `invX`, `invY`
+- Pan and zoom operations
+- Visible range calculation
+
+**LayoutManager**
+
+- Computes layout rectangles for all chart components
+- Defines chart area, time axis, price axis, volume area
+- Handles padding and responsive sizing
+
+### 3. Rendering Pipeline
+
+**CanvasRenderer**
+
+- Hardware-accelerated Canvas 2D rendering
+- HiDPI support with device pixel ratio handling
+- Pixel snapping for crisp lines
+- Batched drawing operations
+
+**CandleRenderer**
+
+- Draws candlesticks with configurable styles
+- Optimized for visible range only
+- Supports bullish/bearish color schemes
+
+**Render Phases**
 
 ```typescript
-interface Theme {
-  colors: ColorConfig;
-  typography: Typography;
-  spacing: Spacing;
-  borderRadius: number;
-  strokeWidth: number;
+enum RenderPhase {
+  BeforeRender, // Setup, clear canvas
+  AfterGrid, // After grid lines drawn
+  AfterAxes, // After axes drawn
+  AfterCandles, // After candles drawn
+  AfterRender, // Final overlay phase
 }
 ```
 
-The `defaultTheme` provides sensible defaults optimized for financial visualizations.
+### 4. Interaction System
 
-### Build Configuration
+**EventManager**
 
-The core package uses:
+- Normalizes browser events to chart events
+- Handles mouse, touch, and wheel events
+- Provides unified `ChartEvent` interface
 
-- **Vite** for bundling (library mode)
-- **Rollup** for producing ESM and CJS outputs
-- **TypeScript** for type declarations
-- **Tree-shaking** enabled via `"sideEffects": false`
+**Interaction Handlers**
 
-Output formats:
+- `PanHandler`: Click-and-drag panning
+- `ZoomHandler`: Pinch-to-zoom, double-click zoom
+- `ScrollHandler`: Mousewheel navigation
+- `Crosshair`: Pointer tracking with candle snapping
 
-- `dist/index.js` - ESM bundle
-- `dist/index.cjs` - CommonJS bundle
-- `dist/index.d.ts` - Type declarations
+### 5. Plugin System
 
-## React Package
+**PluginManager**
 
-The `@solvx/graph-engine-react` package provides React bindings.
+- Manages plugin lifecycle
+- Executes plugin hooks at each render phase
+- Supports dynamic install/uninstall
 
-### SolVXChart Component
+**IPlugin Interface**
 
-A React component that wraps the core `Chart` class:
+```typescript
+interface IPlugin {
+  name: string;
+  onInstall?(chart: unknown): void;
+  onUninstall?(chart: unknown): void;
+  onRender?(context: PluginContext): void;
+}
+```
 
-- Manages chart lifecycle (creation/destruction)
-- Handles React-specific concerns (refs, effects)
-- Provides props-based configuration
-- Exposes `onChartReady` callback for accessing the chart instance
+**Built-in Plugins**
 
-### Implementation Details
+- `CrosshairTooltipPlugin`: OHLCV tooltip
+- `MovingAveragePlugin`: Technical indicator overlay
+- `ShapesOverlayPlugin`: Rectangles, lines, bands
 
-The component uses:
+## Data Flow
 
-- `useRef` for managing the chart instance and container element
-- `useEffect` for lifecycle management
-- Proper cleanup on unmount
+### Static Data Flow
 
-## Development Phases
+```
+candleData[]
+     │
+     ├──> CandleSeries.setData()
+     │
+     ├──> Series stored in typed arrays
+     │
+     ├──> Chart.addSeries(series)
+     │
+     ├──> scheduleRender() (rAF)
+     │
+     ├──> render()
+     │    ├── updateViewport()
+     │    ├── drawGrid()
+     │    ├── drawAxes()
+     │    ├── drawCandles()
+     │    └── executePluginHooks()
+     │
+     └──> Canvas updated
+```
 
-### Phase 1: Foundation (Current)
+### Live Data Flow
 
-**Goals:**
+```
+IDataSource
+     │
+     ├──> subscribe(callback)
+     │
+     ├──> candle update emitted
+     │
+     ├──> series.updateOrAppend(candle)
+     │    ├── Check if ts matches last candle
+     │    ├──> Update: modify last candle
+     │    └──> Append: add new candle
+     │
+     ├──> notifyListeners()
+     │
+     ├──> scheduleRender() (rAF coalescing)
+     │
+     └──> render() at 60 FPS
+```
 
-- Establish monorepo structure
-- Create core package skeleton
-- Create React wrapper
-- Set up build tooling
-- Create examples and documentation
+## Performance Optimizations
 
-**Status:** ✅ Complete
+### Memory Efficiency
 
-### Phase 2: Rendering Engine (Planned)
+- **Typed Arrays**: `Float64Array` for numeric data (50% memory savings vs regular arrays)
+- **Columnar Storage**: Better cache locality for time-series access patterns
+- **View-based Access**: `subarray()` instead of copies where possible
 
-**Goals:**
+### Rendering Efficiency
 
-- Implement Canvas renderer
-- Add WebGL renderer for performance
-- Create rendering pipeline
-- Implement basic chart types
+- **Visible Range Only**: Only render candles in viewport
+- **rAF Coalescing**: Multiple updates batched into single render frame
+- **Dirty Region Tracking**: Minimal redraws (implicit via rAF)
 
-### Phase 3: Data Management (Planned)
+### Computational Efficiency
 
-**Goals:**
+- **Binary Search**: O(log n) time-based queries
+- **Amortized Growth**: 1.5x array growth factor minimizes reallocations
+- **Lazy Computation**: Plugin calculations only when needed
 
-- Design data model
-- Implement data transformation pipeline
-- Add data streaming support
-- Create data adapters
+## Extension Points
 
-### Phase 4: Interactivity (Planned)
+### Custom Plugins
 
-**Goals:**
+```typescript
+class CustomPlugin implements IPlugin {
+  name = 'custom';
 
-- Mouse/touch event handling
-- Zoom and pan
-- Tooltips
-- Crosshair
-- Selection
+  onRender(context: PluginContext): void {
+    if (context.phase !== RenderPhase.AfterCandles) return;
 
-### Phase 5: Plugin System (Planned)
+    const { renderer, layout, chart } = context;
+    // Custom rendering logic here
+  }
+}
+```
 
-**Goals:**
+### Custom Data Sources
 
-- Plugin architecture
-- Plugin lifecycle
-- Built-in plugins
-- Third-party plugin support
+```typescript
+class WebSocketSource implements IDataSource {
+  subscribe(callback: CandleUpdateCallback) {
+    const ws = new WebSocket('wss://api.example.com/candles');
+    ws.onmessage = (event) => {
+      const candle = JSON.parse(event.data);
+      callback(candle);
+    };
+    return () => ws.close();
+  }
+}
+```
 
-## Technology Stack
+### Custom Themes
 
-### Build Tools
+Fully typed theme system with color, typography, and spacing configurations. See [Core Concepts](/core-concepts) for details.
 
-- **pnpm** - Package manager and workspace manager
-- **Vite** - Build tool and dev server
-- **TypeScript** - Type system and compiler
-- **Rollup** - Final bundling (via Vite)
+## Next Steps
 
-### Code Quality
-
-- **ESLint** - Linting (typescript-eslint)
-- **Prettier** - Code formatting
-- **Vitest** - Testing framework
-- **lint-staged** - Pre-commit hooks
-
-### Documentation
-
-- **VitePress** - Documentation site generator
-- **TypeDoc** - API documentation (future)
-
-## Design Principles
-
-### Performance First
-
-- Designed for 60fps rendering with large datasets
-- Efficient data structures
-- Minimal re-renders
-- RequestAnimationFrame-based rendering
-
-### Framework Agnostic Core
-
-- Core library has no framework dependencies
-- Framework-specific wrappers are separate packages
-- Works with any framework or vanilla JavaScript
-
-### Type Safety
-
-- Written in TypeScript with strict mode
-- Full type inference
-- No `any` types in public API
-
-### Tree-Shakeable
-
-- ESM-first design
-- No side effects
-- Named exports only
-- Modular architecture
-
-### Developer Experience
-
-- Clear, documented API
-- Helpful error messages
-- Comprehensive examples
-- TypeScript auto-completion
-
-## Testing Strategy
-
-### Unit Tests
-
-- Core logic and utilities
-- Theme merging
-- Configuration handling
-
-### Integration Tests
-
-- Chart lifecycle
-- React component behavior
-- Build outputs
-
-### Visual Tests (Future)
-
-- Rendering accuracy
-- Cross-browser consistency
-- Screenshot comparison
-
-## Release Process
-
-The project uses semantic versioning and automated releases:
-
-1. Development on feature branches
-2. Pull requests reviewed and tested
-3. Changes merged to main
-4. CI/CD runs tests and builds
-5. Automated version bump and changelog
-6. Published to npm registry
-
-## Contributing
-
-Contributions are welcome! Please read the contributing guide for details on:
-
-- Code style
-- Commit conventions
-- Pull request process
-- Development workflow
+- Learn about [Core Concepts](/core-concepts) for in-depth understanding
+- Explore [Plugins & Extensions](/plugins-and-extensions) for customization
+- Check [API Reference](/api-reference) for complete API documentation

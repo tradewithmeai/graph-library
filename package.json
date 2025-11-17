@@ -17,6 +17,7 @@
     "dev:react": "pnpm --filter @solvx/example-react-dashboard dev",
     "dev:docs": "pnpm --filter @solvx/docs dev",
     "build:docs": "pnpm --filter @solvx/docs build",
+    "deploy:docs": "pnpm build:docs && echo 'Deploy docs/.vitepress/dist to GitHub Pages'",
     "prepare": "husky install || true"
   },
   "devDependencies": {

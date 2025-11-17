@@ -1,68 +1,193 @@
 # SolVX Graph Engine
 
-A high-performance charting library for financial and data visualization.
+⚡ High-performance charting library for financial and data visualization
 
-[![CI](https://github.com/solvx/graph-engine/workflows/CI/badge.svg)](https://github.com/solvx/graph-engine/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![npm version](https://img.shields.io/npm/v/@solvx/graph-engine.svg)](https://www.npmjs.com/package/@solvx/graph-engine)
 
-## Features
+## ✨ Features
 
-- ⚡ **High Performance** - Built for smooth 60fps interactions with large datasets
-- 🎨 **Fully Customizable** - Comprehensive theming and plugin system
+- ⚡ **High Performance** - 60 FPS rendering with live data streaming at high frequencies
+- 🔌 **Extensible Plugin System** - Built-in plugins for tooltips, indicators, and overlays
+- 📊 **Live Data Streaming** - First-class support for real-time data with IDataSource interface
+- 🎨 **Themeable** - Comprehensive theming system with dark/light modes
+- ⚛️ **React Support** - Official React wrapper with proper lifecycle management
 - 📦 **Tree-Shakeable** - ESM-first with zero side effects
 - 🔧 **TypeScript Native** - Full type safety and IntelliSense support
-- ⚛️ **Framework Agnostic** - Works with any framework or vanilla JS
-- 📊 **Rich Chart Types** - Extensible plugin architecture
+- 🚀 **Lightweight** - ~97 kB minified bundle
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Installation
 
-```bash
+::: code-group
+
+```bash [npm]
 npm install @solvx/graph-engine
+npm install @solvx/graph-engine-react  # Optional: for React
 ```
 
-With React:
-
-```bash
-npm install @solvx/graph-engine @solvx/graph-engine-react
+```bash [pnpm]
+pnpm add @solvx/graph-engine
+pnpm add @solvx/graph-engine-react  # Optional: for React
 ```
 
-### Usage
+```bash [yarn]
+yarn add @solvx/graph-engine
+yarn add @solvx/graph-engine-react  # Optional: for React
+```
 
-**Vanilla JavaScript:**
+:::
+
+### Basic Usage
+
+**Vanilla JavaScript/TypeScript:**
 
 ```typescript
-import { Chart } from '@solvx/graph-engine';
+import { Chart, CandleSeries, CrosshairTooltipPlugin } from '@solvx/graph-engine';
 
+// Create chart
 const chart = new Chart({
-  container: '#chart',
+  container: document.getElementById('chart')!,
   width: 800,
-  height: 600,
+  height: 400,
 });
+
+// Add data
+const candleData = [
+  { ts: 1609459200000, open: 100, high: 105, low: 98, close: 103, volume: 1000000 },
+  { ts: 1609545600000, open: 103, high: 108, low: 102, close: 106, volume: 1200000 },
+  // ... more candles
+];
+
+const series = new CandleSeries(candleData);
+chart.addSeries(series);
+
+// Add plugins
+chart.installPlugin(new CrosshairTooltipPlugin());
 ```
 
 **React:**
 
 ```tsx
 import { SolVXChart } from '@solvx/graph-engine-react';
+import { CandleSeries, CrosshairTooltipPlugin } from '@solvx/graph-engine';
 
 function App() {
-  return <SolVXChart width={800} height={600} />;
+  const handleChartReady = (chart) => {
+    const series = new CandleSeries(candleData);
+    chart.addSeries(series);
+    chart.installPlugin(new CrosshairTooltipPlugin());
+  };
+
+  return <SolVXChart width={800} height={400} onChartReady={handleChartReady} />;
 }
 ```
 
-## Project Structure
+### Live Data Streaming
 
-This is a monorepo containing:
+```typescript
+import { Chart, CandleSeries, RandomWalkSource } from '@solvx/graph-engine';
 
-- **packages/core** - Core charting engine (`@solvx/graph-engine`)
-- **packages/react** - React bindings (`@solvx/graph-engine-react`)
-- **examples/vanilla** - Vanilla TypeScript example
-- **examples/react-dashboard** - React dashboard example
-- **docs** - VitePress documentation site
+const chart = new Chart({
+  /* options */
+});
+const series = new CandleSeries();
+chart.addSeries(series);
 
-## Development
+// Connect live data source
+const liveSource = new RandomWalkSource({
+  initialPrice: 100,
+  interval: 250, // Update every 250ms
+  candleDuration: 5000, // 5-second candles
+});
+
+chart.connectDataSource(series, liveSource);
+```
+
+## 📚 Documentation
+
+**[Full Documentation →](https://tradewithmeai.github.io/graph-library/)**
+
+- [Getting Started](https://tradewithmeai.github.io/graph-library/getting-started)
+- [Architecture Overview](https://tradewithmeai.github.io/graph-library/architecture-overview)
+- [Core Concepts](https://tradewithmeai.github.io/graph-library/core-concepts)
+- [API Reference](https://tradewithmeai.github.io/graph-library/api-reference)
+- [Plugins & Extensions](https://tradewithmeai.github.io/graph-library/plugins-and-extensions)
+- [Examples](https://tradewithmeai.github.io/graph-library/examples)
+
+## 🎯 Core Features
+
+### Data Model
+
+- **CandleSeries**: High-performance typed array storage
+- **Live Updates**: Smart `updateOrAppend()` for streaming data
+- **Binary Search**: O(log n) time-based queries
+- **Memory Efficient**: Columnar storage with 1.5x growth factor
+
+### Rendering System
+
+- **Canvas 2D**: Hardware-accelerated rendering with HiDPI support
+- **Render Phases**: BeforeRender, AfterGrid, AfterAxes, AfterCandles, AfterRender
+- **rAF Coalescing**: Smooth 60 FPS with batched updates
+- **Clipping**: Proper viewport clipping for all elements
+
+### Interaction System
+
+- **Pan**: Click-and-drag to pan
+- **Zoom**: Pinch-to-zoom, double-click zoom
+- **Scroll**: Mousewheel navigation
+- **Crosshair**: Pointer tracking with candle snapping
+
+### Plugin System
+
+**Built-in Plugins:**
+
+- `CrosshairTooltipPlugin` - OHLCV tooltip with smart positioning
+- `MovingAveragePlugin` - Technical indicator overlays
+- `ShapesOverlayPlugin` - Rectangles, lines, and bands
+
+**Create Custom Plugins:**
+
+```typescript
+class MyPlugin implements IPlugin {
+  name = 'my-plugin';
+
+  onRender(context: PluginContext) {
+    const { renderer, layout, phase } = context;
+    // Custom rendering logic
+  }
+}
+
+chart.installPlugin(new MyPlugin());
+```
+
+### Live Data Sources
+
+- `RandomWalkSource` - Random walk generator (testing)
+- `ArrayPlaybackSource` - Historical data replay (backtesting)
+- Custom sources via `IDataSource` interface
+
+## 📁 Project Structure
+
+```
+graph-library/
+├── packages/
+│   ├── core/              # @solvx/graph-engine
+│   └── react/             # @solvx/graph-engine-react
+├── examples/
+│   ├── vanilla/           # Vanilla TypeScript example
+│   ├── react-dashboard/   # React dashboard example
+│   ├── basic-chart/       # Basic static chart
+│   ├── live-streaming/    # Live data streaming
+│   ├── timeframe-blending/# Two-timeframe blending
+│   └── shapes-demo/       # Shapes overlay demo
+├── docs/                  # VitePress documentation
+└── scripts/               # Build and deploy scripts
+```
+
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -72,15 +197,20 @@ This is a monorepo containing:
 ### Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/solvx/graph-engine.git
-cd graph-engine
+# Clone repository
+git clone https://github.com/tradewithmeai/graph-library.git
+cd graph-library
 
 # Install dependencies
 pnpm install
 
-# Build all packages
+# Build packages
 pnpm build
+
+# Run examples
+pnpm dev:vanilla        # Vanilla example
+pnpm dev:react          # React example
+pnpm dev:docs           # Documentation site
 ```
 
 ### Available Scripts
@@ -88,83 +218,90 @@ pnpm build
 ```bash
 # Development
 pnpm dev:vanilla        # Run vanilla example
-pnpm dev:react          # Run React example
-pnpm dev:docs           # Run documentation site
+pnpm dev:react          # Run React dashboard
+pnpm dev:docs           # Run docs site
 
 # Building
 pnpm build              # Build all packages
-pnpm build:docs         # Build documentation
+pnpm build-docs         # Build documentation
 
 # Testing & Quality
-pnpm test               # Run tests
+pnpm test               # Run tests (163 tests)
 pnpm test:watch         # Run tests in watch mode
 pnpm lint               # Lint code
 pnpm format             # Format code
-pnpm format:check       # Check formatting
-pnpm typecheck          # Type check all packages
+pnpm typecheck          # Type check
 
-# Cleanup
-pnpm clean              # Clean all build artifacts
+# Publishing
+pnpm deploy-docs        # Deploy docs to GitHub Pages
 ```
 
-## Project Status
+## 📊 Project Status
 
-**Phase 1: Foundation** ✅ Complete
+**Phase 1-2: Foundation & Data Model** ✅ Complete
 
-- [x] Monorepo structure
-- [x] Core package skeleton
-- [x] React wrapper
-- [x] Build tooling
-- [x] Examples
-- [x] Documentation framework
+- [x] Monorepo structure with pnpm workspaces
+- [x] Core package with TypeScript
+- [x] React wrapper component
+- [x] CandleSeries with typed arrays
+- [x] Viewport coordinate transformations
 
-**Phase 2: Rendering Engine** (Planned)
+**Phase 3: Rendering Engine** ✅ Complete
 
-- [ ] Canvas renderer
-- [ ] WebGL renderer
-- [ ] Basic chart types
+- [x] Canvas 2D renderer with HiDPI support
+- [x] Layout manager
+- [x] Candle renderer
+- [x] Time and price axes
+- [x] Grid rendering
 
-**Phase 3: Data Management** (Planned)
+**Phase 4: Interaction & Events** ✅ Complete
 
-- [ ] Data model
-- [ ] Data transformations
-- [ ] Streaming support
+- [x] Event management system
+- [x] Pan, zoom, scroll handlers
+- [x] Crosshair with candle snapping
+- [x] Touch support
 
-**Phase 4: Interactivity** (Planned)
+**Phase 5: Plugin Architecture** ✅ Complete
 
-- [ ] Event handling
-- [ ] Zoom & pan
-- [ ] Tooltips
-- [ ] Crosshair
+- [x] Plugin system with lifecycle hooks
+- [x] CrosshairTooltipPlugin
+- [x] MovingAveragePlugin
+- [x] ShapesOverlayPlugin
+- [x] Dynamic install/uninstall
 
-**Phase 5: Plugin System** (Planned)
+**Phase 6: Live Data System** ✅ Complete
 
-- [ ] Plugin architecture
-- [ ] Built-in plugins
-- [ ] Plugin marketplace
+- [x] IDataSource interface
+- [x] RandomWalkSource
+- [x] ArrayPlaybackSource
+- [x] Chart data source integration
+- [x] Live update support in CandleSeries
 
-## Documentation
+**Phase 7: Documentation & Examples** ✅ Complete
 
-Full documentation is available at [https://solvx.github.io/graph-engine](https://solvx.github.io/graph-engine)
+- [x] VitePress documentation site
+- [x] Complete API reference
+- [x] Usage examples
+- [x] GitHub Pages deployment
 
-## Browser Support
+## 🌐 Browser Support
 
 - Chrome (last 2 versions)
 - Firefox (last 2 versions)
 - Safari (last 2 versions)
 - Edge (last 2 versions)
 
-## Contributing
+## 📄 License
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+MIT © 2025 SolVX
 
-## License
+## 🔗 Links
 
-MIT © 2024 SolVX
+- **[Documentation](https://tradewithmeai.github.io/graph-library/)**
+- **[Examples](./examples)**
+- **[GitHub Issues](https://github.com/tradewithmeai/graph-library/issues)**
+- **[npm Package](https://www.npmjs.com/package/@solvx/graph-engine)**
 
-## Links
+---
 
-- [Documentation](https://solvx.github.io/graph-engine)
-- [Examples](./examples)
-- [Changelog](./CHANGELOG.md)
-- [Issues](https://github.com/solvx/graph-engine/issues)
+**Built with ❤️ using TypeScript, Canvas 2D, and Vite**
