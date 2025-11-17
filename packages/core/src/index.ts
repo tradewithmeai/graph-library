@@ -60,3 +60,22 @@ export { Crosshair } from './crosshair';
 export type { CrosshairState } from './crosshair';
 export { CrosshairRenderer, defaultCrosshairStyle } from './crosshair';
 export type { CrosshairStyle } from './crosshair';
+
+// Phase 5: Plugin architecture and built-in plugins
+export {
+  CrosshairTooltipPlugin,
+  defaultTooltipStyle,
+  MovingAveragePlugin,
+  defaultMAConfig,
+  ShapesOverlayPlugin,
+  defaultShapeStyle,
+} from './plugins-builtin';
+export type {
+  TooltipStyle,
+  MovingAverageConfig,
+  ShapeStyle,
+  Rectangle,
+  Line,
+  HorizontalBand,
+  Shape,
+} from './plugins-builtin';
