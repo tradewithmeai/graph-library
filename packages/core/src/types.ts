@@ -1,3 +1,5 @@
+import type { InteractionOptions } from './events/types';
+
 /**
  * Chart configuration options
  */
@@ -26,6 +28,11 @@ export interface ChartOptions {
    * Initial data for the chart
    */
   data?: unknown;
+
+  /**
+   * Interaction configuration
+   */
+  interaction?: InteractionOptions;
 }
 
 /**

@@ -118,6 +118,17 @@ export class LayoutManager {
   }
 
   /**
+   * Update dimensions
+   *
+   * @param width - New width
+   * @param height - New height
+   */
+  public setDimensions(width: number, height: number): void {
+    this.config.width = width;
+    this.config.height = height;
+  }
+
+  /**
    * Compute the complete layout
    *
    * @returns Complete chart layout

@@ -335,6 +335,18 @@ export class CandleSeries {
   }
 
   /**
+   * Get timestamp at a specific index
+   *
+   * @param index - Index of the candle
+   * @returns Timestamp in milliseconds or -1 if out of bounds
+   */
+  public getTimestamp(index: number): TimestampMs {
+    if (index < 0 || index >= this.length) return -1;
+    const ts = this.ts[index];
+    return ts !== undefined ? ts : -1;
+  }
+
+  /**
    * Get all candles as an array
    *
    * @returns Array of candles

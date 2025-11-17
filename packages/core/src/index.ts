@@ -40,3 +40,23 @@ export type { CandleStyle } from './drawing';
 
 export { PluginManager, RenderPhase } from './plugins';
 export type { IPlugin, PluginHook, PluginContext } from './plugins';
+
+// Phase 4: Interaction and event handling
+export { EventManager } from './events';
+export type {
+  EventHandler,
+  ChartEvent,
+  ChartEventType,
+  InteractionOptions,
+  WheelMode,
+} from './events';
+export { InteractionMode, defaultInteractionOptions } from './events';
+
+export { PanHandler } from './interaction';
+export { ZoomHandler } from './interaction';
+export { ScrollHandler } from './interaction';
+
+export { Crosshair } from './crosshair';
+export type { CrosshairState } from './crosshair';
+export { CrosshairRenderer, defaultCrosshairStyle } from './crosshair';
+export type { CrosshairStyle } from './crosshair';

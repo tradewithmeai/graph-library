@@ -228,4 +228,96 @@ export class Viewport {
   public getPriceSpan(): number {
     return this.priceConfig.max - this.priceConfig.min;
   }
+
+  /**
+   * Pan the viewport by the given time and price deltas
+   *
+   * @param timeDelta - Time delta in milliseconds (positive = pan right)
+   * @param priceDelta - Price delta (optional, positive = pan up)
+   */
+  public pan(timeDelta: number, priceDelta?: number): void {
+    this.timeRange.start += timeDelta;
+    this.timeRange.end += timeDelta;
+
+    if (priceDelta !== undefined) {
+      this.priceConfig.min += priceDelta;
+      this.priceConfig.max += priceDelta;
+    }
+  }
+
+  /**
+   * Zoom the viewport by the given factor, centered on the given X coordinate
+   *
+   * @param factor - Zoom factor (>1 = zoom in, <1 = zoom out)
+   * @param centerX - X pixel coordinate to center the zoom on
+   */
+  public zoom(factor: number, centerX: number): void {
+    const centerTime = this.invX(centerX);
+    const currentSpan = this.getTimeSpan();
+    const newSpan = currentSpan / factor;
+
+    // Calculate how much of the span is before and after the center point
+    const timeBefore = centerTime - this.timeRange.start;
+    const timeAfter = this.timeRange.end - centerTime;
+    const totalTime = timeBefore + timeAfter;
+
+    // Preserve the ratio of time before/after center
+    const ratioStart = timeBefore / totalTime;
+    const ratioEnd = timeAfter / totalTime;
+
+    this.timeRange.start = centerTime - newSpan * ratioStart;
+    this.timeRange.end = centerTime + newSpan * ratioEnd;
+  }
+
+  /**
+   * Calculate the number of visible bars given total candles and average duration
+   *
+   * @param totalCandles - Total number of candles in the data
+   * @param avgCandleDuration - Average duration of a candle in milliseconds
+   * @returns Approximate number of visible bars
+   */
+  public getVisibleBars(totalCandles: number, avgCandleDuration: number): number {
+    if (totalCandles === 0 || avgCandleDuration === 0) return 0;
+    const timeSpan = this.getTimeSpan();
+    return timeSpan / avgCandleDuration;
+  }
+
+  /**
+   * Clamp the time range to stay within valid bounds and enforce min/max visible bars
+   *
+   * @param minTime - Minimum allowed time
+   * @param maxTime - Maximum allowed time
+   * @param minSpan - Minimum allowed time span
+   * @param maxSpan - Maximum allowed time span
+   */
+  public clampTimeRange(minTime: number, maxTime: number, minSpan: number, maxSpan: number): void {
+    let { start, end } = this.timeRange;
+    let span = end - start;
+
+    // Clamp span
+    if (span < minSpan) {
+      const center = (start + end) / 2;
+      start = center - minSpan / 2;
+      end = center + minSpan / 2;
+      span = minSpan;
+    } else if (span > maxSpan) {
+      const center = (start + end) / 2;
+      start = center - maxSpan / 2;
+      end = center + maxSpan / 2;
+      span = maxSpan;
+    }
+
+    // Clamp to data bounds
+    if (start < minTime) {
+      start = minTime;
+      end = start + span;
+    }
+    if (end > maxTime) {
+      end = maxTime;
+      start = end - span;
+    }
+
+    this.timeRange.start = start;
+    this.timeRange.end = end;
+  }
 }
