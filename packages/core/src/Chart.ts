@@ -743,6 +743,15 @@ export class Chart {
   }
 
   /**
+   * Get list of installed plugin names
+   *
+   * @returns Array of plugin names
+   */
+  public getInstalledPlugins(): string[] {
+    return this.pluginManager.getPlugins().map((plugin) => plugin.name);
+  }
+
+  /**
    * Gets the current theme
    */
   public getTheme(): Theme {
