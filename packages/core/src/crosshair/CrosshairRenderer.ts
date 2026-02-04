@@ -1,5 +1,4 @@
 import type { IRenderer } from '../renderer/IRenderer';
-import { CanvasRenderer } from '../renderer/CanvasRenderer';
 import type { Viewport } from '../viewport/Viewport';
 import type { Crosshair, CrosshairState } from './Crosshair';
 import type { LayoutRect } from '../layout';
@@ -91,10 +90,7 @@ export class CrosshairRenderer {
     renderer.save();
 
     // Set up dashed line style
-    if (renderer instanceof CanvasRenderer) {
-      const ctx = renderer.getContext();
-      ctx.setLineDash(this.style.lineDash);
-    }
+    renderer.setLineDash(this.style.lineDash);
 
     // Draw vertical line
     if (x >= chartX && x <= chartX + width) {
@@ -113,10 +109,7 @@ export class CrosshairRenderer {
     }
 
     // Reset line dash
-    if (renderer instanceof CanvasRenderer) {
-      const ctx = renderer.getContext();
-      ctx.setLineDash([]);
-    }
+    renderer.setLineDash([]);
 
     renderer.restore();
   }
@@ -137,10 +130,11 @@ export class CrosshairRenderer {
     // Calculate candle X position and width
     const candleX = this.viewport.xScale(candle.ts);
 
-    // Calculate candle width based on time span
+    // Calculate candle width from the crosshair's series data
+    const series = this.crosshair.getSeries();
     const timeSpan = this.viewport.getTimeSpan();
-    // Estimate candle width (this is a simplified calculation)
-    const avgCandleDuration = timeSpan / 50; // Rough estimate
+    const visibleCandleCount = series ? Math.max(1, series.getLength()) : 50;
+    const avgCandleDuration = timeSpan / visibleCandleCount;
     const candleWidth = Math.max(2, (avgCandleDuration / timeSpan) * width * 0.8);
 
     const highlightX = candleX - candleWidth / 2;
@@ -152,10 +146,7 @@ export class CrosshairRenderer {
     renderer.save();
 
     // Set opacity
-    if (renderer instanceof CanvasRenderer) {
-      const ctx = renderer.getContext();
-      ctx.globalAlpha = this.style.highlightOpacity;
-    }
+    renderer.setGlobalAlpha(this.style.highlightOpacity);
 
     renderer.fillRect(
       highlightX,

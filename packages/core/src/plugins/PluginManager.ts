@@ -1,4 +1,5 @@
 import type { IPlugin, PluginContext } from './types';
+import type { ChartEvent } from '../events/types';
 
 /**
  * PluginManager handles plugin lifecycle and hook execution
@@ -60,6 +61,15 @@ export class PluginManager {
   public executeHooks(context: PluginContext): void {
     for (const plugin of this.plugins.values()) {
       plugin.onRender?.(context);
+    }
+  }
+
+  /**
+   * Dispatch a chart event to all plugins that have an onEvent hook
+   */
+  public dispatchEvent(event: ChartEvent): void {
+    for (const plugin of this.plugins.values()) {
+      plugin.onEvent?.(event);
     }
   }
 

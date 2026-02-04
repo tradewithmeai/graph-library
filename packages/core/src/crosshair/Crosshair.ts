@@ -35,6 +35,8 @@ export interface CrosshairState {
 export class Crosshair {
   private viewport: Viewport;
   private series: CandleSeries | null = null;
+  private chartAreaOffsetX: number = 0;
+  private chartAreaOffsetY: number = 0;
   private state: CrosshairState = {
     x: 0,
     y: 0,
@@ -50,10 +52,26 @@ export class Crosshair {
   }
 
   /**
+   * Set the chart area offset so canvas-relative coordinates
+   * can be correctly converted to chart-area-relative coordinates
+   */
+  public setChartAreaOffset(x: number, y: number): void {
+    this.chartAreaOffsetX = x;
+    this.chartAreaOffsetY = y;
+  }
+
+  /**
    * Set the primary series for candle snapping
    */
   public setSeries(series: CandleSeries | null): void {
     this.series = series;
+  }
+
+  /**
+   * Get the current series (for crosshair rendering calculations)
+   */
+  public getSeries(): CandleSeries | null {
+    return this.series;
   }
 
   /**
@@ -64,9 +82,13 @@ export class Crosshair {
     this.state.y = event.chartY;
     this.state.visible = true;
 
+    // Convert canvas-relative coordinates to chart-area-relative before inverse transform
+    const localX = event.chartX - this.chartAreaOffsetX;
+    const localY = event.chartY - this.chartAreaOffsetY;
+
     // Convert pixel coordinates to data space
-    this.state.time = this.viewport.invX(event.chartX);
-    this.state.price = this.viewport.invY(event.chartY);
+    this.state.time = this.viewport.invX(localX);
+    this.state.price = this.viewport.invY(localY);
 
     // Snap to nearest candle if series is available
     this.snapToCandle(this.state.time);

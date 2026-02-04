@@ -53,8 +53,8 @@ function initChart(): void {
     container,
     width: container.clientWidth,
     height: 500,
-    interactions: {
-      wheelMode: 'scroll', // Use scroll mode to prevent default zoom
+    interaction: {
+      wheelMode: 'scrollX',
     },
   });
 
@@ -82,7 +82,7 @@ function initChart(): void {
 /**
  * Setup blend control using custom rendering
  */
-function setupBlendControl(chart: Chart, series1m: CandleSeries, series5m: CandleSeries): void {
+function setupBlendControl(chart: Chart, _series1m: CandleSeries, _series5m: CandleSeries): void {
   let blendValue = 0.5; // 0 = 1m only, 1 = 5m only
 
   const blendMarker = document.getElementById('blend-marker');
@@ -100,28 +100,11 @@ function setupBlendControl(chart: Chart, series1m: CandleSeries, series5m: Candl
   }
 
   function updateSeriesOpacity(): void {
-    // Note: This is a simplified implementation
-    // In a full implementation, we would modify the renderer's global alpha
-    // or implement a custom plugin to control opacity per series
-    // For this example, we'll show the concept even if the exact API differs
-
     const opacity1m = 1 - blendValue;
     const opacity5m = blendValue;
 
-    console.log(`Blend updated: 1m=${opacity1m.toFixed(2)}, 5m=${opacity5m.toFixed(2)}`);
-
-    // If Chart has setSeriesOpacity method, use it
-    if (typeof (chart as any).setSeriesOpacity === 'function') {
-      (chart as any).setSeriesOpacity(0, opacity1m);
-      (chart as any).setSeriesOpacity(1, opacity5m);
-    } else {
-      // Alternative: Store opacity in series metadata
-      // The renderer would need to respect this in a real implementation
-      (series1m as any)._opacity = opacity1m;
-      (series5m as any)._opacity = opacity5m;
-    }
-
-    chart.scheduleRender();
+    chart.setSeriesOpacity(0, opacity1m);
+    chart.setSeriesOpacity(1, opacity5m);
   }
 
   // Handle wheel events

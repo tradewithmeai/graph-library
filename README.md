@@ -15,30 +15,25 @@
 - ⚛️ **React Support** - Official React wrapper with proper lifecycle management
 - 📦 **Tree-Shakeable** - ESM-first with zero side effects
 - 🔧 **TypeScript Native** - Full type safety and IntelliSense support
-- 🚀 **Lightweight** - ~97 kB minified bundle
+- 🚀 **Lightweight** - ~101 kB minified bundle (~21 kB gzipped)
 
 ## 🚀 Quick Start
 
 ### Installation
 
-::: code-group
-
-```bash [npm]
+```bash
+# npm
 npm install @solvx/graph-engine
 npm install @solvx/graph-engine-react  # Optional: for React
-```
 
-```bash [pnpm]
+# pnpm
 pnpm add @solvx/graph-engine
 pnpm add @solvx/graph-engine-react  # Optional: for React
-```
 
-```bash [yarn]
+# yarn
 yarn add @solvx/graph-engine
 yarn add @solvx/graph-engine-react  # Optional: for React
 ```
-
-:::
 
 ### Basic Usage
 

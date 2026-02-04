@@ -1,4 +1,14 @@
 /**
+ * Text alignment options (renderer-agnostic)
+ */
+export type TextAlign = 'left' | 'right' | 'center' | 'start' | 'end';
+
+/**
+ * Text baseline options (renderer-agnostic)
+ */
+export type TextBaseline = 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom';
+
+/**
  * Abstract renderer interface for drawing operations
  *
  * Provides a unified API for rendering graphics, allowing for
@@ -9,6 +19,14 @@ export interface IRenderer {
    * Get the device pixel ratio
    */
   pixelRatio(): number;
+
+  /**
+   * Resize the rendering surface
+   *
+   * @param width - CSS width in pixels
+   * @param height - CSS height in pixels
+   */
+  resize(width: number, height: number): void;
 
   /**
    * Save the current rendering state
@@ -29,6 +47,28 @@ export interface IRenderer {
    * @param height - Height of clip region
    */
   setClip(x: number, y: number, width: number, height: number): void;
+
+  /**
+   * Apply a translation transform
+   *
+   * @param x - X offset
+   * @param y - Y offset
+   */
+  translate(x: number, y: number): void;
+
+  /**
+   * Set the line dash pattern
+   *
+   * @param segments - Array of dash/gap lengths. Empty array for solid lines.
+   */
+  setLineDash(segments: number[]): void;
+
+  /**
+   * Set the global opacity for subsequent draw operations
+   *
+   * @param alpha - Opacity value from 0 (transparent) to 1 (opaque)
+   */
+  setGlobalAlpha(alpha: number): void;
 
   /**
    * Begin a new path
@@ -106,8 +146,8 @@ export interface IRenderer {
     y: number,
     color: string,
     font?: string,
-    align?: CanvasTextAlign,
-    baseline?: CanvasTextBaseline,
+    align?: TextAlign,
+    baseline?: TextBaseline,
   ): void;
 
   /**
@@ -120,7 +160,7 @@ export interface IRenderer {
   measureText(text: string, font?: string): number;
 
   /**
-   * Clear the entire canvas
+   * Clear the entire rendering surface
    */
   clear(): void;
 
@@ -135,12 +175,12 @@ export interface IRenderer {
   clearRect(x: number, y: number, width: number, height: number): void;
 
   /**
-   * Get the canvas width in CSS pixels
+   * Get the rendering surface width in CSS pixels
    */
   getWidth(): number;
 
   /**
-   * Get the canvas height in CSS pixels
+   * Get the rendering surface height in CSS pixels
    */
   getHeight(): number;
 }

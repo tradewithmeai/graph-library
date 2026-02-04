@@ -16,11 +16,11 @@ constructor(options: ChartOptions)
 
 ```typescript
 interface ChartOptions {
-  container: HTMLElement; // Container element
+  container: HTMLElement | string; // Container element or CSS selector
   width?: number; // Chart width (default: container width)
-  height?: number; // Chart height (default: 400)
-  theme?: Theme; // Custom theme (default: defaultTheme)
-  interactions?: InteractionOptions; // Interaction configuration
+  height?: number; // Chart height (default: 600)
+  theme?: Partial<Theme>; // Custom theme (default: defaultTheme)
+  interaction?: InteractionOptions; // Interaction configuration
 }
 ```
 
@@ -113,10 +113,32 @@ getTheme(): Theme
 Get the current theme.
 
 ```typescript
-setTheme(theme: Theme): void
+setTheme(theme: Partial<Theme>): void
 ```
 
-Update the theme.
+Update the theme at runtime.
+
+#### Events
+
+```typescript
+on(type: ChartEventType, handler: EventHandler): void
+```
+
+Register an event handler (`'pointerdown'`, `'pointermove'`, `'pointerup'`, `'wheel'`, `'click'`, `'dblclick'`, `'mouseleave'`).
+
+```typescript
+off(type: ChartEventType, handler: EventHandler): void
+```
+
+Unregister an event handler.
+
+#### Series
+
+```typescript
+setSeriesOpacity(index: number, opacity: number): void
+```
+
+Set rendering opacity (0-1) for a series by index.
 
 #### Rendering
 
@@ -460,6 +482,7 @@ interface IPlugin {
   onInstall?(chart: unknown): void;
   onUninstall?(chart: unknown): void;
   onRender?(context: PluginContext): void;
+  onEvent?(event: ChartEvent): void;
 }
 ```
 
@@ -511,7 +534,7 @@ constructor(config?: Partial<MovingAverageConfig>, id?: string)
 ```typescript
 interface MovingAverageConfig {
   period: number; // Default: 20
-  sourceField: 'open' | 'high' | 'low' | 'close'; // Default: 'close'
+  source: 'open' | 'high' | 'low' | 'close'; // Default: 'close'
   color: string; // Default: '#2196F3'
   lineWidth: number; // Default: 2
 }
@@ -536,10 +559,10 @@ updateShapeStyle(id: string, style: Partial<ShapeStyle>): boolean
 
 ```typescript
 interface ShapeStyle {
-  fillColor: string;
-  strokeColor: string;
-  lineWidth: number;
-  lineDash: number[];
+  strokeColor?: string;
+  fillColor?: string;
+  lineWidth?: number;
+  opacity?: number;
 }
 ```
 
@@ -600,6 +623,8 @@ interface Theme {
   colors: ColorConfig;
   typography: Typography;
   spacing: Spacing;
+  borderRadius: number;
+  strokeWidth: number;
 }
 ```
 

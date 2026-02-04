@@ -100,8 +100,11 @@ function addTradingSessions(shapesPlugin: ShapesOverlayPlugin, candleData: Candl
   ];
 
   const dayMs = 24 * 60 * 60 * 1000;
-  const startTime = candleData[0].ts;
-  const endTime = candleData[candleData.length - 1].ts;
+  const firstCandle = candleData[0];
+  const lastCandle = candleData[candleData.length - 1];
+  if (!firstCandle || !lastCandle) return;
+  const startTime = firstCandle.ts;
+  const endTime = lastCandle.ts;
   const startDay = Math.floor(startTime / dayMs) * dayMs;
   const numDays = Math.ceil((endTime - startTime) / dayMs);
 

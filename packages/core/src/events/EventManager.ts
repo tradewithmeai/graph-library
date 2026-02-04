@@ -117,19 +117,20 @@ export class EventManager {
     let shiftKey = false;
     let metaKey = false;
 
-    if (event instanceof PointerEvent || event instanceof MouseEvent) {
+    if (event instanceof WheelEvent) {
       clientX = event.clientX;
       clientY = event.clientY;
+      deltaX = event.deltaX;
+      deltaY = event.deltaY;
       button = event.button;
       altKey = event.altKey;
       ctrlKey = event.ctrlKey;
       shiftKey = event.shiftKey;
       metaKey = event.metaKey;
-    } else if (event instanceof WheelEvent) {
+    } else if (event instanceof PointerEvent || event instanceof MouseEvent) {
       clientX = event.clientX;
       clientY = event.clientY;
-      deltaX = event.deltaX;
-      deltaY = event.deltaY;
+      button = event.button;
       altKey = event.altKey;
       ctrlKey = event.ctrlKey;
       shiftKey = event.shiftKey;

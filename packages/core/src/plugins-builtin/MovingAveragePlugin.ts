@@ -5,7 +5,6 @@ import type { CandleSeries } from '../data/CandleSeries';
 import type { Viewport } from '../viewport/Viewport';
 import type { IRenderer } from '../renderer/IRenderer';
 import type { LayoutRect } from '../layout/LayoutManager';
-import { CanvasRenderer } from '../renderer/CanvasRenderer';
 
 /**
  * Moving average configuration
@@ -166,11 +165,7 @@ export class MovingAveragePlugin implements IPlugin {
     renderer.setClip(chartArea.x, chartArea.y, chartArea.width, chartArea.height);
 
     // Translate to chart area
-    let ctx: CanvasRenderingContext2D | null = null;
-    if (renderer instanceof CanvasRenderer) {
-      ctx = renderer.getContext();
-      ctx.translate(chartArea.x, chartArea.y);
-    }
+    renderer.translate(chartArea.x, chartArea.y);
 
     // Get visible range
     const timeRange = viewport.getTimeRange();
@@ -196,9 +191,7 @@ export class MovingAveragePlugin implements IPlugin {
     }
 
     if (startIdx > endIdx) {
-      if (ctx && renderer instanceof CanvasRenderer) {
-        ctx.translate(-chartArea.x, -chartArea.y);
-      }
+      renderer.translate(-chartArea.x, -chartArea.y);
       renderer.restore();
       return;
     }
@@ -225,9 +218,7 @@ export class MovingAveragePlugin implements IPlugin {
     renderer.stroke(this.config.color, this.config.lineWidth);
 
     // Restore translation
-    if (ctx && renderer instanceof CanvasRenderer) {
-      ctx.translate(-chartArea.x, -chartArea.y);
-    }
+    renderer.translate(-chartArea.x, -chartArea.y);
 
     renderer.restore();
   }

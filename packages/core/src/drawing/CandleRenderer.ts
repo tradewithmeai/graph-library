@@ -1,6 +1,28 @@
 import type { IRenderer } from '../renderer/IRenderer';
 import type { CandleDataView } from '../data';
+import type { CandleMeta } from '../data/types';
 import type { Viewport } from '../viewport/Viewport';
+
+/**
+ * Per-candle draw callback for custom rendering or styling
+ */
+export type OnDrawCandle = (info: {
+  index: number;
+  ts: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  meta?: CandleMeta;
+  x: number;
+  yOpen: number;
+  yClose: number;
+  yHigh: number;
+  yLow: number;
+  bodyWidth: number;
+  color: string;
+  renderer: IRenderer;
+}) => void;
 
 /**
  * Candle visual style configuration
@@ -60,6 +82,7 @@ export const defaultCandleStyle: CandleStyle = {
  */
 export class CandleRenderer {
   private style: CandleStyle;
+  private onDrawCandle: OnDrawCandle | null = null;
 
   /**
    * Create a new CandleRenderer
@@ -68,6 +91,13 @@ export class CandleRenderer {
    */
   constructor(style?: Partial<CandleStyle>) {
     this.style = { ...defaultCandleStyle, ...style };
+  }
+
+  /**
+   * Set a per-candle draw callback
+   */
+  public setOnDrawCandle(callback: OnDrawCandle | null): void {
+    this.onDrawCandle = callback;
   }
 
   /**
@@ -104,20 +134,35 @@ export class CandleRenderer {
 
     if (timeSpan === 0 || width === 0) return;
 
-    // Approximate candle width: pixels per time unit * average candle duration
-    const avgCandleDuration = timeSpan / dataView.length;
+    // Compute actual candle interval from timestamps for stable width
+    let avgCandleDuration: number;
+    if (dataView.length >= 2) {
+      const firstTs = dataView.ts[0]!;
+      const lastTs = dataView.ts[dataView.length - 1]!;
+      avgCandleDuration = (lastTs - firstTs) / (dataView.length - 1);
+    } else {
+      avgCandleDuration = timeSpan;
+    }
     const rawBodyWidth = (avgCandleDuration / timeSpan) * width;
 
     // Apply spacing and clamp to min/max
     const bodyWidth = Math.max(minBodyWidth, Math.min(maxBodyWidth, rawBodyWidth * (1 - spacing)));
 
-    // Draw each visible candle
-    for (let i = 0; i < dataView.length; i++) {
+    // Pre-compute all candle geometries for batched drawing
+    const n = dataView.length;
+    const xs = new Float64Array(n);
+    const yOpens = new Float64Array(n);
+    const yCloses = new Float64Array(n);
+    const yHighs = new Float64Array(n);
+    const yLows = new Float64Array(n);
+    const isUp = new Uint8Array(n); // 1 = up, 0 = down
+
+    for (let i = 0; i < n; i++) {
       const ts = dataView.ts[i];
       const open = dataView.open[i];
+      const close = dataView.close[i];
       const high = dataView.high[i];
       const low = dataView.low[i];
-      const close = dataView.close[i];
 
       if (
         ts === undefined ||
@@ -129,36 +174,102 @@ export class CandleRenderer {
         continue;
       }
 
-      // Convert to pixel coordinates
-      const x = viewport.xScale(ts);
-      const yOpen = viewport.yScale(open);
-      const yClose = viewport.yScale(close);
-      const yHigh = viewport.yScale(high);
-      const yLow = viewport.yScale(low);
+      xs[i] = viewport.xScale(ts);
+      yOpens[i] = viewport.yScale(open);
+      yCloses[i] = viewport.yScale(close);
+      yHighs[i] = viewport.yScale(high);
+      yLows[i] = viewport.yScale(low);
+      isUp[i] = close >= open ? 1 : 0;
+    }
 
-      // Determine candle color
-      const color = close >= open ? upColor : downColor;
+    // Batch 1: Draw all up-color wicks in a single path
+    renderer.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (!isUp[i]) continue;
+      const wickX = Math.floor(xs[i]!);
+      renderer.moveTo(wickX, yHighs[i]!);
+      renderer.lineTo(wickX, yLows[i]!);
+    }
+    renderer.stroke(upColor, wickWidth);
 
-      // Draw wick (high-low line)
-      const wickX = Math.floor(x);
-      renderer.beginPath();
-      renderer.moveTo(wickX, yHigh);
-      renderer.lineTo(wickX, yLow);
-      renderer.stroke(color, wickWidth);
+    // Batch 2: Draw all down-color wicks in a single path
+    renderer.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (isUp[i]) continue;
+      const wickX = Math.floor(xs[i]!);
+      renderer.moveTo(wickX, yHighs[i]!);
+      renderer.lineTo(wickX, yLows[i]!);
+    }
+    renderer.stroke(downColor, wickWidth);
 
-      // Draw body (open-close rectangle)
-      const bodyX = Math.floor(x - bodyWidth / 2);
-      const bodyY = Math.min(yOpen, yClose);
-      const bodyHeight = Math.abs(yClose - yOpen);
+    // Batch 3: Draw all up-color bodies
+    for (let i = 0; i < n; i++) {
+      if (!isUp[i]) continue;
+      const bodyX = Math.floor(xs[i]! - bodyWidth / 2);
+      const bodyY = Math.min(yOpens[i]!, yCloses[i]!);
+      const bodyHeight = Math.abs(yCloses[i]! - yOpens[i]!);
 
-      // If body height is very small (doji), draw a horizontal line
       if (bodyHeight < 1) {
         renderer.beginPath();
         renderer.moveTo(bodyX, bodyY);
         renderer.lineTo(bodyX + bodyWidth, bodyY);
-        renderer.stroke(color, wickWidth);
+        renderer.stroke(upColor, wickWidth);
       } else {
-        renderer.fillRect(bodyX, bodyY, bodyWidth, bodyHeight, color);
+        renderer.fillRect(bodyX, bodyY, bodyWidth, bodyHeight, upColor);
+      }
+    }
+
+    // Batch 4: Draw all down-color bodies
+    for (let i = 0; i < n; i++) {
+      if (isUp[i]) continue;
+      const bodyX = Math.floor(xs[i]! - bodyWidth / 2);
+      const bodyY = Math.min(yOpens[i]!, yCloses[i]!);
+      const bodyHeight = Math.abs(yCloses[i]! - yOpens[i]!);
+
+      if (bodyHeight < 1) {
+        renderer.beginPath();
+        renderer.moveTo(bodyX, bodyY);
+        renderer.lineTo(bodyX + bodyWidth, bodyY);
+        renderer.stroke(downColor, wickWidth);
+      } else {
+        renderer.fillRect(bodyX, bodyY, bodyWidth, bodyHeight, downColor);
+      }
+    }
+
+    // Invoke per-candle callback if set
+    if (this.onDrawCandle) {
+      for (let i = 0; i < n; i++) {
+        const ts = dataView.ts[i];
+        const open = dataView.open[i];
+        const high = dataView.high[i];
+        const low = dataView.low[i];
+        const close = dataView.close[i];
+        if (
+          ts === undefined ||
+          open === undefined ||
+          high === undefined ||
+          low === undefined ||
+          close === undefined
+        )
+          continue;
+
+        this.onDrawCandle({
+          index: i,
+          ts,
+          open,
+          high,
+          low,
+          close,
+          meta: dataView.meta?.[i],
+          x: xs[i]!,
+          yOpen: yOpens[i]!,
+          yClose: yCloses[i]!,
+          yHigh: yHighs[i]!,
+          yLow: yLows[i]!,
+          bodyWidth,
+          color: isUp[i] ? upColor : downColor,
+          renderer,
+        });
       }
     }
   }

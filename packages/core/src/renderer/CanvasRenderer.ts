@@ -1,4 +1,4 @@
-import type { IRenderer } from './IRenderer';
+import type { IRenderer, TextAlign, TextBaseline } from './IRenderer';
 
 /**
  * Canvas 2D renderer implementation with high-DPI support
@@ -80,6 +80,18 @@ export class CanvasRenderer implements IRenderer {
     this.ctx.restore();
   }
 
+  public translate(x: number, y: number): void {
+    this.ctx.translate(x, y);
+  }
+
+  public setLineDash(segments: number[]): void {
+    this.ctx.setLineDash(segments);
+  }
+
+  public setGlobalAlpha(alpha: number): void {
+    this.ctx.globalAlpha = alpha;
+  }
+
   public setClip(x: number, y: number, width: number, height: number): void {
     this.ctx.beginPath();
     this.ctx.rect(x, y, width, height);
@@ -138,8 +150,8 @@ export class CanvasRenderer implements IRenderer {
     y: number,
     color: string,
     font: string = '12px sans-serif',
-    align: CanvasTextAlign = 'left',
-    baseline: CanvasTextBaseline = 'alphabetic',
+    align: TextAlign = 'left',
+    baseline: TextBaseline = 'alphabetic',
   ): void {
     this.ctx.fillStyle = color;
     this.ctx.font = font;

@@ -15,7 +15,8 @@ import { RenderPhase } from './plugins/types';
 import type { IPlugin } from './plugins/types';
 import { EventManager } from './events/EventManager';
 import { defaultInteractionOptions } from './events/types';
-import type { InteractionOptions } from './events/types';
+import type { InteractionOptions, ChartEventType } from './events/types';
+import type { EventHandler } from './events/EventManager';
 import { PanHandler } from './interaction/PanHandler';
 import { ZoomHandler } from './interaction/ZoomHandler';
 import { ScrollHandler } from './interaction/ScrollHandler';
@@ -61,6 +62,9 @@ export class Chart {
 
   // Data sources
   private dataSourceSubscriptions: Map<CandleSeries, () => void> = new Map();
+
+  // Series opacity map (index → opacity)
+  private seriesOpacity: Map<number, number> = new Map();
 
   /**
    * Creates a new Chart instance
@@ -117,10 +121,8 @@ export class Chart {
     const width = this.options.width || rect.width || 800;
     const height = this.options.height || rect.height || 600;
 
-    // Resize canvas to match dimensions
-    if (this.renderer instanceof CanvasRenderer) {
-      this.renderer.resize(width, height);
-    }
+    // Resize renderer to match dimensions
+    this.renderer.resize(width, height);
 
     // Create layout manager
     const layoutConfig: LayoutConfig = {
@@ -223,6 +225,23 @@ export class Chart {
       });
     }
 
+    // Dispatch all events to plugins
+    const allEventTypes: ChartEventType[] = [
+      'pointerdown',
+      'pointermove',
+      'pointerup',
+      'pointercancel',
+      'wheel',
+      'mouseleave',
+      'dblclick',
+      'click',
+    ];
+    for (const eventType of allEventTypes) {
+      this.eventManager.on(eventType, (e) => {
+        this.pluginManager.dispatchEvent(e);
+      });
+    }
+
     // Wheel handling (zoom or scroll)
     this.eventManager.on('wheel', (e) => {
       if (this.interactionOptions.wheelMode === 'zoomX' && this.zoomHandler) {
@@ -253,9 +272,7 @@ export class Chart {
     const height = this.options.height || rect.height || 600;
 
     // Resize renderer
-    if (this.renderer instanceof CanvasRenderer) {
-      this.renderer.resize(width, height);
-    }
+    this.renderer.resize(width, height);
 
     // Update layout manager
     this.layoutManager.setDimensions(width, height);
@@ -354,8 +371,15 @@ export class Chart {
     // Execute before-render plugin hooks
     this.executePluginHooks(layout, RenderPhase.BeforeRender);
 
-    // Clear canvas
+    // Clear canvas and fill with background color
     this.renderer.clear();
+    this.renderer.fillRect(
+      0,
+      0,
+      this.renderer.getWidth(),
+      this.renderer.getHeight(),
+      this.theme.colors.background,
+    );
 
     // Compute domains from all series
     this.computeDomainsAndViewport(layout);
@@ -374,6 +398,10 @@ export class Chart {
 
     // Draw crosshair
     if (this.interactionOptions.enableCrosshair) {
+      // Update chart area offset so crosshair correctly maps canvas coords to data space
+      if (this.crosshair) {
+        this.crosshair.setChartAreaOffset(layout.chartArea.x, layout.chartArea.y);
+      }
       this.drawCrosshair(layout);
     }
 
@@ -428,6 +456,12 @@ export class Chart {
       maxTime = 1000;
     }
 
+    // Ensure minimum time span (avoid zero-width viewport with 1 data point)
+    if (maxTime - minTime < 1) {
+      minTime -= 30000;
+      maxTime += 30000;
+    }
+
     // Determine time range to use
     let timeStart = minTime;
     let timeEnd = maxTime;
@@ -437,6 +471,14 @@ export class Chart {
       const currentTimeRange = this.viewport.getTimeRange();
       timeStart = currentTimeRange.start;
       timeEnd = currentTimeRange.end;
+
+      // Auto-scroll for live data: when data sources are connected and
+      // new data extends past the right edge, shift the viewport forward
+      if (this.dataSourceSubscriptions.size > 0 && maxTime > timeEnd) {
+        const shift = maxTime - timeEnd;
+        timeStart += shift;
+        timeEnd += shift;
+      }
     }
 
     // Compute price domain across all series for the current time range
@@ -490,20 +532,30 @@ export class Chart {
       this.viewport.setPriceConfig({ min: minPrice, max: maxPrice, paddingPx: 0 });
     }
 
-    // Create or update axes
+    // Create or update axes (reuse instances when possible)
     const currentTimeRange = this.viewport.getTimeRange();
-    this.timeAxis = new TimeAxis(
-      { start: currentTimeRange.start, end: currentTimeRange.end },
-      layout.chartArea.width,
-      80,
-    );
+    if (!this.timeAxis) {
+      this.timeAxis = new TimeAxis(
+        { start: currentTimeRange.start, end: currentTimeRange.end },
+        layout.chartArea.width,
+        80,
+      );
+    } else {
+      this.timeAxis.setTimeRange({ start: currentTimeRange.start, end: currentTimeRange.end });
+      this.timeAxis.setWidth(layout.chartArea.width);
+    }
 
     const currentPriceConfig = this.viewport.getPriceConfig();
-    this.priceAxis = new PriceAxis(
-      { min: currentPriceConfig.min, max: currentPriceConfig.max },
-      layout.chartArea.height,
-      0,
-    );
+    if (!this.priceAxis) {
+      this.priceAxis = new PriceAxis(
+        { min: currentPriceConfig.min, max: currentPriceConfig.max },
+        layout.chartArea.height,
+        0,
+      );
+    } else {
+      this.priceAxis.setPriceRange({ min: currentPriceConfig.min, max: currentPriceConfig.max });
+      this.priceAxis.setHeight(layout.chartArea.height);
+    }
   }
 
   /**
@@ -532,82 +584,6 @@ export class Chart {
     if (this.crosshairRenderer && this.crosshair) {
       this.crosshairRenderer = new CrosshairRenderer(this.crosshair, this.viewport);
     }
-
-    // Re-setup event listeners with new handlers
-    this.setupInteractionListeners();
-  }
-
-  /**
-   * Setup interaction event listeners
-   */
-  private setupInteractionListeners(): void {
-    if (!this.eventManager) return;
-
-    // Clear existing handlers (EventManager doesn't have a clear method, so we'll just add new ones)
-    // Note: This creates duplicate listeners, but for now we'll accept this
-    // A better approach would be to store listener references and remove them
-
-    // Setup event listeners
-    if (this.interactionOptions.enablePan) {
-      this.eventManager.on('pointerdown', (e) => {
-        if (this.panHandler) {
-          this.panHandler.onPointerDown(e);
-        }
-      });
-
-      this.eventManager.on('pointermove', (e) => {
-        if (this.panHandler && this.panHandler.isPanning()) {
-          this.panHandler.onPointerMove(e);
-        }
-      });
-
-      this.eventManager.on('pointerup', (e) => {
-        if (this.panHandler && this.panHandler.isPanning()) {
-          this.panHandler.onPointerUp(e);
-        }
-      });
-
-      this.eventManager.on('pointercancel', (e) => {
-        if (this.panHandler && this.panHandler.isPanning()) {
-          this.panHandler.onPointerCancel(e);
-        }
-      });
-    }
-
-    // Crosshair tracking
-    if (this.interactionOptions.enableCrosshair) {
-      this.eventManager.on('pointermove', (e) => {
-        if (this.crosshair && !this.panHandler?.isPanning()) {
-          this.crosshair.onPointerMove(e);
-          this.scheduleRender();
-        }
-      });
-
-      this.eventManager.on('mouseleave', () => {
-        if (this.crosshair) {
-          this.crosshair.hide();
-          this.scheduleRender();
-        }
-      });
-    }
-
-    // Wheel handling (zoom or scroll)
-    this.eventManager.on('wheel', (e) => {
-      if (this.interactionOptions.wheelMode === 'zoomX' && this.zoomHandler) {
-        this.zoomHandler.onWheel(e);
-      } else if (
-        this.interactionOptions.wheelMode === 'scrollX' ||
-        this.interactionOptions.wheelMode === 'blend'
-      ) {
-        // ScrollHandler will check wheelMode internally
-        if (this.scrollHandler && this.scrollHandler.onWheel(e)) {
-          // Handled by scroll handler
-        } else if (this.zoomHandler) {
-          // Fall back to zoom for blend mode
-          this.zoomHandler.onWheel(e);
-        }
-      }
-    });
   }
 
   /**
@@ -690,24 +666,33 @@ export class Chart {
     this.renderer.setClip(chartArea.x, chartArea.y, chartArea.width, chartArea.height);
 
     // Translate renderer to chart area
-    const ctx = (this.renderer as CanvasRenderer).getContext();
-    ctx.translate(chartArea.x, chartArea.y);
+    this.renderer.translate(chartArea.x, chartArea.y);
 
     // Draw candles for each series
-    for (const series of this.seriesList) {
-      if (series.getLength() === 0) continue;
+    for (let i = 0; i < this.seriesList.length; i++) {
+      const series = this.seriesList[i];
+      if (!series || series.getLength() === 0) continue;
 
       // Get visible range
       const timeRange = this.viewport.getTimeRange();
       const dataView = series.rangeByTime(timeRange.start, timeRange.end);
 
       if (dataView.length > 0) {
-        this.candleRenderer.draw(this.renderer, this.viewport, dataView);
+        // Apply per-series opacity if set
+        const opacity = this.seriesOpacity.get(i);
+        if (opacity !== undefined && opacity < 1) {
+          this.renderer.save();
+          this.renderer.setGlobalAlpha(opacity);
+          this.candleRenderer.draw(this.renderer, this.viewport, dataView);
+          this.renderer.restore();
+        } else {
+          this.candleRenderer.draw(this.renderer, this.viewport, dataView);
+        }
       }
     }
 
     // Restore translation
-    ctx.translate(-chartArea.x, -chartArea.y);
+    this.renderer.translate(-chartArea.x, -chartArea.y);
 
     this.renderer.restore();
   }
@@ -916,6 +901,64 @@ export class Chart {
     if (this.scrollHandler) {
       this.scrollHandler.setWheelMode(mode);
     }
+  }
+
+  /**
+   * Register an event handler on the chart
+   */
+  public on(type: ChartEventType, handler: EventHandler): void {
+    if (this.eventManager) {
+      this.eventManager.on(type, handler);
+    }
+  }
+
+  /**
+   * Unregister an event handler from the chart
+   */
+  public off(type: ChartEventType, handler: EventHandler): void {
+    if (this.eventManager) {
+      this.eventManager.off(type, handler);
+    }
+  }
+
+  /**
+   * Update the chart theme at runtime
+   */
+  public setTheme(theme: Partial<Theme>): void {
+    this.theme = this.mergeTheme(theme);
+    this.candleRenderer.setStyle({
+      upColor: this.theme.colors.success,
+      downColor: this.theme.colors.error,
+    });
+    this.scheduleRender();
+  }
+
+  /**
+   * Reset the viewport so it recalculates from current data on next render.
+   * Call this after replacing data (e.g., switching data sources).
+   */
+  public resetViewport(): void {
+    this.hasInitialViewport = false;
+    this.viewport = null;
+    this.scheduleRender();
+  }
+
+  /**
+   * Programmatically resize the chart
+   */
+  public resize(width: number, height: number): void {
+    if (!this.renderer || !this.layoutManager) return;
+    this.renderer.resize(width, height);
+    this.layoutManager.setDimensions(width, height);
+    this.scheduleRender();
+  }
+
+  /**
+   * Set opacity for a series by index (0-1)
+   */
+  public setSeriesOpacity(index: number, opacity: number): void {
+    this.seriesOpacity.set(index, Math.max(0, Math.min(1, opacity)));
+    this.scheduleRender();
   }
 
   /**

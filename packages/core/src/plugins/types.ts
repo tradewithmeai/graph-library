@@ -1,5 +1,6 @@
 import type { IRenderer } from '../renderer/IRenderer';
 import type { ChartLayout } from '../layout/LayoutManager';
+import type { ChartEvent } from '../events/types';
 
 /**
  * Plugin hook phases during rendering
@@ -84,4 +85,9 @@ export interface IPlugin {
    * Hook called when plugin is uninstalled
    */
   onUninstall?: (chart: unknown) => void;
+
+  /**
+   * Hook called when a chart event occurs (pointer, wheel, click, etc.)
+   */
+  onEvent?: (event: ChartEvent) => void;
 }

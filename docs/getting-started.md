@@ -149,15 +149,14 @@ Customize the chart appearance with themes:
 import { Chart, defaultTheme } from '@solvx/graph-engine';
 import type { Theme } from '@solvx/graph-engine';
 
-const customTheme: Theme = {
-  ...defaultTheme,
+const customTheme: Partial<Theme> = {
   colors: {
     ...defaultTheme.colors,
     background: '#1a1a1a',
+    foreground: '#ffffff',
     grid: '#333333',
-    text: '#ffffff',
-    candleUp: '#00ff00',
-    candleDown: '#ff0000',
+    success: '#00ff00', // Bullish candle color
+    error: '#ff0000', // Bearish candle color
   },
 };
 

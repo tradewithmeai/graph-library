@@ -5,7 +5,6 @@ import type { Viewport } from '../viewport/Viewport';
 import type { IRenderer } from '../renderer/IRenderer';
 import type { TimestampMs } from '../data/types';
 import type { LayoutRect } from '../layout/LayoutManager';
-import { CanvasRenderer } from '../renderer/CanvasRenderer';
 
 /**
  * Shape style configuration
@@ -217,54 +216,34 @@ export class ShapesOverlayPlugin implements IPlugin {
 
     renderer.save();
     renderer.setClip(chartArea.x, chartArea.y, chartArea.width, chartArea.height);
-
-    // Translate to chart area
-    let ctx: CanvasRenderingContext2D | null = null;
-    if (renderer instanceof CanvasRenderer) {
-      ctx = renderer.getContext();
-      ctx.translate(chartArea.x, chartArea.y);
-    }
+    renderer.translate(chartArea.x, chartArea.y);
 
     // Draw each shape
     for (const shape of this.shapes.values()) {
-      this.drawShape(renderer, viewport, shape, ctx);
+      this.drawShape(renderer, viewport, shape);
     }
 
-    // Restore translation
-    if (ctx && renderer instanceof CanvasRenderer) {
-      ctx.translate(-chartArea.x, -chartArea.y);
-    }
-
+    renderer.translate(-chartArea.x, -chartArea.y);
     renderer.restore();
   }
 
   /**
    * Draw a single shape
    */
-  private drawShape(
-    renderer: IRenderer,
-    viewport: Viewport,
-    shape: Shape,
-    ctx: CanvasRenderingContext2D | null,
-  ): void {
+  private drawShape(renderer: IRenderer, viewport: Viewport, shape: Shape): void {
     if (shape.type === 'rectangle') {
-      this.drawRectangle(renderer, viewport, shape, ctx);
+      this.drawRectangle(renderer, viewport, shape);
     } else if (shape.type === 'line') {
-      this.drawLine(renderer, viewport, shape, ctx);
+      this.drawLine(renderer, viewport, shape);
     } else if (shape.type === 'band') {
-      this.drawBand(renderer, viewport, shape, ctx);
+      this.drawBand(renderer, viewport, shape);
     }
   }
 
   /**
    * Draw rectangle
    */
-  private drawRectangle(
-    renderer: IRenderer,
-    viewport: Viewport,
-    rect: Rectangle,
-    ctx: CanvasRenderingContext2D | null,
-  ): void {
+  private drawRectangle(renderer: IRenderer, viewport: Viewport, rect: Rectangle): void {
     const x0 = viewport.xScale(rect.t0);
     const x1 = viewport.xScale(rect.t1);
     const y0 = viewport.yScale(rect.p0);
@@ -275,45 +254,32 @@ export class ShapesOverlayPlugin implements IPlugin {
     const width = Math.abs(x1 - x0);
     const height = Math.abs(y1 - y0);
 
-    // Set opacity
-    const prevAlpha = ctx?.globalAlpha ?? 1.0;
-    if (ctx && rect.style.opacity !== undefined) {
-      ctx.globalAlpha = rect.style.opacity;
+    renderer.save();
+    if (rect.style.opacity !== undefined) {
+      renderer.setGlobalAlpha(rect.style.opacity);
     }
 
-    // Fill
     if (rect.style.fillColor) {
       renderer.fillRect(x, y, width, height, rect.style.fillColor);
     }
-
-    // Stroke
     if (rect.style.strokeColor) {
       renderer.strokeRect(x, y, width, height, rect.style.strokeColor, rect.style.lineWidth ?? 1);
     }
 
-    // Restore opacity
-    if (ctx) {
-      ctx.globalAlpha = prevAlpha;
-    }
+    renderer.restore();
   }
 
   /**
    * Draw line
    */
-  private drawLine(
-    renderer: IRenderer,
-    viewport: Viewport,
-    line: Line,
-    ctx: CanvasRenderingContext2D | null,
-  ): void {
+  private drawLine(renderer: IRenderer, viewport: Viewport, line: Line): void {
     const x0 = viewport.xScale(line.t0);
     const x1 = viewport.xScale(line.t1);
     const y = viewport.yScale(line.price);
 
-    // Set opacity
-    const prevAlpha = ctx?.globalAlpha ?? 1.0;
-    if (ctx && line.style.opacity !== undefined) {
-      ctx.globalAlpha = line.style.opacity;
+    renderer.save();
+    if (line.style.opacity !== undefined) {
+      renderer.setGlobalAlpha(line.style.opacity);
     }
 
     renderer.beginPath();
@@ -324,21 +290,13 @@ export class ShapesOverlayPlugin implements IPlugin {
       renderer.stroke(line.style.strokeColor, line.style.lineWidth ?? 1);
     }
 
-    // Restore opacity
-    if (ctx) {
-      ctx.globalAlpha = prevAlpha;
-    }
+    renderer.restore();
   }
 
   /**
    * Draw horizontal band
    */
-  private drawBand(
-    renderer: IRenderer,
-    viewport: Viewport,
-    band: HorizontalBand,
-    ctx: CanvasRenderingContext2D | null,
-  ): void {
+  private drawBand(renderer: IRenderer, viewport: Viewport, band: HorizontalBand): void {
     const { width } = viewport.getDimensions();
     const y0 = viewport.yScale(band.p0);
     const y1 = viewport.yScale(band.p1);
@@ -346,18 +304,15 @@ export class ShapesOverlayPlugin implements IPlugin {
     const y = Math.min(y0, y1);
     const height = Math.abs(y1 - y0);
 
-    // Set opacity
-    const prevAlpha = ctx?.globalAlpha ?? 1.0;
-    if (ctx && band.style.opacity !== undefined) {
-      ctx.globalAlpha = band.style.opacity;
+    renderer.save();
+    if (band.style.opacity !== undefined) {
+      renderer.setGlobalAlpha(band.style.opacity);
     }
 
-    // Fill
     if (band.style.fillColor) {
       renderer.fillRect(0, y, width, height, band.style.fillColor);
     }
 
-    // Stroke top and bottom
     if (band.style.strokeColor) {
       renderer.beginPath();
       renderer.moveTo(0, y);
@@ -370,10 +325,7 @@ export class ShapesOverlayPlugin implements IPlugin {
       renderer.stroke(band.style.strokeColor, band.style.lineWidth ?? 1);
     }
 
-    // Restore opacity
-    if (ctx) {
-      ctx.globalAlpha = prevAlpha;
-    }
+    renderer.restore();
   }
 
   /**

@@ -87,8 +87,11 @@ function initChart(): void {
   chart.installPlugin(shapesPlugin);
 
   // Add some example shapes
-  const minTime = candleData[0].ts;
-  const maxTime = candleData[candleData.length - 1].ts;
+  const firstCandle = candleData[0];
+  const lastCandle = candleData[candleData.length - 1];
+  if (!firstCandle || !lastCandle) return;
+  const minTime = firstCandle.ts;
+  const maxTime = lastCandle.ts;
   const midTime = (minTime + maxTime) / 2;
 
   // Add a support/resistance zone
@@ -292,6 +295,7 @@ function setupLiveDataControls(chart: Chart, series: CandleSeries, staticData: C
 
     // Reset to static data
     series.setData(staticData);
+    chart.resetViewport();
 
     currentSource = 'static';
     statusDiv.textContent = 'Status: Static (' + staticData.length + ' candles)';
@@ -306,8 +310,9 @@ function setupLiveDataControls(chart: Chart, series: CandleSeries, staticData: C
       arrayPlaybackSource = null;
     }
 
-    // Clear series and start with fresh random walk
+    // Clear series and reset viewport for fresh data
     series.clear();
+    chart.resetViewport();
 
     // Create and connect random walk source
     randomWalkSource = new RandomWalkSource({
@@ -333,8 +338,9 @@ function setupLiveDataControls(chart: Chart, series: CandleSeries, staticData: C
       randomWalkSource = null;
     }
 
-    // Clear series for playback
+    // Clear series and reset viewport for playback
     series.clear();
+    chart.resetViewport();
 
     // Create and connect array playback source
     arrayPlaybackSource = new ArrayPlaybackSource({

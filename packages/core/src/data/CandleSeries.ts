@@ -1,4 +1,11 @@
-import type { Candle, TimestampMs, PriceRange, TimeRange, ChangeListener } from './types';
+import type {
+  Candle,
+  CandleMeta,
+  TimestampMs,
+  PriceRange,
+  TimeRange,
+  ChangeListener,
+} from './types';
 
 /**
  * View into a subset of candle data
@@ -10,6 +17,7 @@ export interface CandleDataView {
   low: Float64Array;
   close: Float64Array;
   volume?: Float64Array;
+  meta?: ReadonlyArray<CandleMeta | undefined>;
   startIndex: number;
   endIndex: number;
   length: number;
@@ -28,7 +36,9 @@ export class CandleSeries {
   private low: Float64Array;
   private close: Float64Array;
   private volume: Float64Array | null;
+  private meta: Array<CandleMeta | undefined>;
   private hasVolume: boolean;
+  private hasMeta: boolean;
   private length: number;
   private listeners: Set<ChangeListener>;
 
@@ -41,6 +51,7 @@ export class CandleSeries {
     this.listeners = new Set();
     this.length = 0;
     this.hasVolume = false;
+    this.hasMeta = false;
 
     // Initialize with empty arrays
     this.ts = new Float64Array(0);
@@ -49,6 +60,7 @@ export class CandleSeries {
     this.low = new Float64Array(0);
     this.close = new Float64Array(0);
     this.volume = null;
+    this.meta = [];
 
     if (candles.length > 0) {
       this.setData(candles);
@@ -69,7 +81,9 @@ export class CandleSeries {
       this.low = new Float64Array(0);
       this.close = new Float64Array(0);
       this.volume = null;
+      this.meta = [];
       this.hasVolume = false;
+      this.hasMeta = false;
       this.notifyListeners();
       return;
     }
@@ -77,8 +91,9 @@ export class CandleSeries {
     // Sort by timestamp (stable sort)
     const sorted = [...candles].sort((a, b) => a.ts - b.ts);
 
-    // Check if any candle has volume
+    // Check if any candle has volume or meta
     this.hasVolume = sorted.some((c) => c.volume !== undefined);
+    this.hasMeta = sorted.some((c) => c.meta !== undefined);
 
     // Allocate typed arrays
     this.length = sorted.length;
@@ -88,6 +103,7 @@ export class CandleSeries {
     this.low = new Float64Array(this.length);
     this.close = new Float64Array(this.length);
     this.volume = this.hasVolume ? new Float64Array(this.length) : null;
+    this.meta = this.hasMeta ? new Array<CandleMeta | undefined>(this.length) : [];
 
     // Populate arrays
     for (let i = 0; i < this.length; i++) {
@@ -102,6 +118,9 @@ export class CandleSeries {
 
       if (this.volume && candle.volume !== undefined) {
         this.volume[i] = candle.volume;
+      }
+      if (this.hasMeta) {
+        this.meta[i] = candle.meta;
       }
     }
 
@@ -192,6 +211,7 @@ export class CandleSeries {
         low: new Float64Array(0),
         close: new Float64Array(0),
         volume: this.hasVolume ? new Float64Array(0) : undefined,
+        meta: this.hasMeta ? [] : undefined,
         startIndex: start,
         endIndex: start,
         length: 0,
@@ -205,6 +225,7 @@ export class CandleSeries {
       low: this.low.subarray(start, end),
       close: this.close.subarray(start, end),
       volume: this.volume ? this.volume.subarray(start, end) : undefined,
+      meta: this.hasMeta ? this.meta.slice(start, end) : undefined,
       startIndex: start,
       endIndex: end,
       length: end - start,
@@ -329,7 +350,8 @@ export class CandleSeries {
       }
     }
 
-    const candle: Candle = { ts, open, high, low, close, volume };
+    const candleMeta = this.hasMeta ? this.meta[index] : undefined;
+    const candle: Candle = { ts, open, high, low, close, volume, meta: candleMeta };
 
     return candle;
   }
@@ -422,6 +444,9 @@ export class CandleSeries {
     if (this.volume && candle.volume !== undefined) {
       this.volume[lastIndex] = candle.volume;
     }
+    if (this.hasMeta && candle.meta) {
+      this.meta[lastIndex] = candle.meta;
+    }
 
     this.notifyListeners();
   }
@@ -438,9 +463,14 @@ export class CandleSeries {
     // Ensure volume array exists if needed
     if (candle.volume !== undefined && !this.hasVolume) {
       this.hasVolume = true;
-      // Create volume array and backfill with zeros
       const newVolume = new Float64Array(Math.max(this.length, 16));
       this.volume = newVolume;
+    }
+
+    // Ensure meta array tracks if needed
+    if (candle.meta !== undefined && !this.hasMeta) {
+      this.hasMeta = true;
+      this.meta = new Array<CandleMeta | undefined>(this.length);
     }
 
     // Check if we need to grow arrays
@@ -458,6 +488,9 @@ export class CandleSeries {
 
     if (this.volume && candle.volume !== undefined) {
       this.volume[this.length] = candle.volume;
+    }
+    if (this.hasMeta) {
+      this.meta[this.length] = candle.meta;
     }
 
     this.length++;
@@ -516,7 +549,9 @@ export class CandleSeries {
     this.low = new Float64Array(0);
     this.close = new Float64Array(0);
     this.volume = null;
+    this.meta = [];
     this.hasVolume = false;
+    this.hasMeta = false;
     this.notifyListeners();
   }
 }
