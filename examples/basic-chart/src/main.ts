@@ -61,8 +61,36 @@ function initChart(): void {
   const series = new CandleSeries(candleData);
   chart.addSeries(series);
 
+  // Add spacing control
+  const controlsDiv = document.createElement('div');
+  controlsDiv.style.cssText = 'margin: 12px 0; font-family: sans-serif; font-size: 14px;';
+
+  const label = document.createElement('label');
+  label.textContent = 'Candle Spacing: ';
+
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = '0';
+  slider.max = '80';
+  slider.value = '20';
+  slider.style.cssText = 'width: 300px; vertical-align: middle;';
+
+  const valueLabel = document.createElement('span');
+  valueLabel.textContent = ' 20% (default)';
+
+  slider.addEventListener('input', () => {
+    const pct = parseInt(slider.value);
+    chart.setCandleStyle({ spacing: pct / 100 });
+    valueLabel.textContent = pct === 0 ? ' 0% (no gap)' : ` ${pct}%`;
+  });
+
+  label.appendChild(slider);
+  label.appendChild(valueLabel);
+  controlsDiv.appendChild(label);
+  container.parentElement?.insertBefore(controlsDiv, container.nextSibling);
+
   console.log('Chart initialized with', candleData.length, 'candles');
-  console.log('Try panning (click-drag) and zooming (mousewheel)');
+  console.log('Try the spacing slider to remove whitespace between candles');
 
   // Store chart instance globally for debugging
   (window as Window & { chart?: Chart }).chart = chart;

@@ -10,6 +10,7 @@ import { Viewport } from './viewport/Viewport';
 import { TimeAxis } from './axis/TimeAxis';
 import { PriceAxis } from './axis/PriceAxis';
 import { CandleRenderer } from './drawing/CandleRenderer';
+import type { CandleStyle } from './drawing/CandleRenderer';
 import { PluginManager } from './plugins/PluginManager';
 import { RenderPhase } from './plugins/types';
 import type { IPlugin } from './plugins/types';
@@ -931,6 +932,21 @@ export class Chart {
       downColor: this.theme.colors.error,
     });
     this.scheduleRender();
+  }
+
+  /**
+   * Update candle rendering style (spacing, colors, wick width, etc.)
+   */
+  public setCandleStyle(style: Partial<CandleStyle>): void {
+    this.candleRenderer.setStyle(style);
+    this.scheduleRender();
+  }
+
+  /**
+   * Get current candle rendering style
+   */
+  public getCandleStyle(): CandleStyle {
+    return this.candleRenderer.getStyle();
   }
 
   /**
